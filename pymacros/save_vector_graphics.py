@@ -124,7 +124,7 @@ class VectorFileExporter:
                 pdf.setPageSize(pya.QPagedPaintDevice.A4)
                 pdf.setResolution(settings.resolution)
                 pdf.setTitle(settings.title)
-                painter = pya.QPainter(pdf)
+                painter = pya.QPainter(pdf.asQPagedPaintDevice())
                 self._pdf = pdf
             
             case VectorFileFormat.SVG:
@@ -243,7 +243,9 @@ class VectorFileExporter:
         dbu = self.dbu
         bbox = top_cell.dbbox()
                 
-        format = VectorFileFormat.SVG  # PDF
+        # format = VectorFileFormat.SVG
+        format = VectorFileFormat.PDF
+        
         settings = VectorFileExportSettings(
             format=format,
             dpi=300,
