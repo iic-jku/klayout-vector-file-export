@@ -138,10 +138,18 @@ class VectorFileExporter:
         match self.settings.file_format:
             case VectorFileFormat.PDF:
                 pdf = pya.QPdfWriter(str(output_path))
-                pdf.setPageSize(pya.QPagedPaintDevice_PageSize.A4)    # TODO! page_size.id())
                 pdf.setResolution(72)
                 pdf.setTitle(self.settings.title)
-                painter = pya.QPainter(pdf.asQPagedPaintDevice())
+                dev = pdf.asQPagedPaintDevice()
+                dev.setPageSize(page_size)
+                match self.settings.page_orientation:
+                    case PageOrientation.PORTRAIT:
+                        dev.setPageOrientation(pya.QPageLayout.Portrait)
+                    case PageOrientation.LANDSCAPE:
+                        dev.setPageOrientation(pya.QPageLayout.Landscape)
+                    case _:
+                        raise NotImplementedError()
+                painter = pya.QPainter(dev)
                 self._pdf = pdf
             
             case VectorFileFormat.SVG:
@@ -174,13 +182,26 @@ class VectorFileExporter:
         
         page_size = self.settings.page_size()
         page_size_pt = page_size.sizePoints()
-        page_size_mm = page_size.size(pya.QPageSize_Unit.Millimeter)
         
-        offset_x = (page_size_pt.width - self.design_info.fig_width_pt) / 2
-        offset_y = (page_size_pt.height - self.design_info.fig_height_pt) / 2
+        width: float
+        height: float
+        
+        match self.settings.page_orientation:
+            case PageOrientation.PORTRAIT:
+                width = page_size_pt.width
+                height = page_size_pt.height
+            case PageOrientation.LANDSCAPE:
+                width = page_size_pt.height
+                height = page_size_pt.width
+            case _:
+                raise NotImplementedError()
+        
+        offset_x = (width - self.design_info.fig_width_pt) / 2
+        offset_y = (height - self.design_info.fig_height_pt) / 2
         
         # print(f"Bounding box: {design_info.width_um} x {design_info.height_um} µm")
         # print(f"Target bounding box: {design_info.fig_width_pt:.2f} x {design_info.fig_height_pt:.2f} pt  (scale {design_info.scale:.6f})")
+        # page_size_mm = page_size.size(pya.QPageSize_Unit.Millimeter)
         # print(f"Page size: {page_size_mm.width} x {page_size_mm.height} mm "
         #       f"({page_size_pt.width} x {page_size_pt.height} pt)")
         
