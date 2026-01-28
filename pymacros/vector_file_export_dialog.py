@@ -81,6 +81,8 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         self.page.all_visible_layers_rb.toggled.connect(self.on_layer_radio_buttons_changed)
         self.page.custom_layer_selection_rb.toggled.connect(self.on_layer_radio_buttons_changed)
 
+        self.page.browse_save_path_pb.clicked.connect(self.on_browse_save_path)
+
         self.scene = pya.QGraphicsScene(self)
         self.page.preview_gv.setScene(self.scene)        
         
@@ -175,6 +177,8 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
             file_format = VectorFileFormat.PDF
             layer_output_style = LayerOutputStyle.PAGE_PER_LAYER
         
+        output_path = Path(self.page.save_path_le.text)
+        
         page_format = self.page.page_format_cob.currentData()
 
         page_orientation: PageOrientation
@@ -200,7 +204,7 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         
         return VectorFileExportSettings(
             file_format=file_format,
-            output_path=Path(self.page.save_path_le.text),
+            output_path=output_path,
             title=self.page.title_le.text,
             page_format=page_format,
             page_orientation=page_orientation,
@@ -291,3 +295,40 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
     def on_layer_radio_buttons_changed(self):
         pass
     
+    def on_browse_save_path(self):
+        if Debugging.DEBUG:
+            debug("VectorFileExportDialog.on_browse_save_path")
+        
+        try:
+            lru_path = FileSystemHelpers.least_recent_directory()
+            
+            file_filter: str
+            suffix: str
+            
+            settings = self.settings_from_ui()
+            match settings.file_format:
+                case VectorFileFormat.PDF:
+                    file_filter = 'PDF (*.pdf)'
+                    suffix = '.pdf'
+                case VectorFileFormat.SVG:
+                    file_filter = 'SVG (*.svg)'
+                    suffix = '.svg'
+                
+            file_path_str = pya.QFileDialog.getSaveFileName(
+                self,               
+                "Select Export File Path",
+                lru_path,                 # starting dir ("" = default to last used / home)
+                f"{file_filter};;All Files (*)"
+            )
+        
+            if file_path_str:
+                file_path = Path(file_path_str)
+                if '.'.join(file_path.suffixes).lower() != suffix:
+                    file_path = file_path.with_suffix(suffix)
+                self.page.save_path_le.setText(file_path)
+                
+                FileSystemHelpers.set_least_recent_directory(file_path.parent)
+        except Exception as e:
+            print("VectorFileExportDialog.on_browse_save_path caught an exception", e)
+            traceback.print_exc()
+
