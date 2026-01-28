@@ -59,6 +59,7 @@ import vector_file_export_settings
 import vector_file_export_dialog
 import vector_file_exporter
 import progress_reporter
+import design_info
 reload(klayout_plugin_utils.debugging)
 reload(klayout_plugin_utils.editor_options)
 reload(klayout_plugin_utils.event_loop)
@@ -70,6 +71,7 @@ reload(vector_file_export_settings)
 reload(vector_file_export_dialog)
 reload(vector_file_exporter)
 reload(progress_reporter)
+reload(design_info)
 
 import klayout_plugin_utils.debugging
 klayout_plugin_utils.debugging.Debugging.init_debugging()

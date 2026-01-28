@@ -27,61 +27,15 @@ from typing import *
 
 from klayout_plugin_utils.debugging import debug, Debugging
 
+from design_info import DesignInfo
 from progress_reporter import ProgressReporter
 from vector_file_export_settings import *
 
 
-@dataclass
-class DesignInfo:
-    bbox: pya.DBox
-    dbu: float
-    layer_indexes: List[int]
-    settings: VectorFileExportSettings
-
-    @property
-    def width_um(self) -> float:
-        return self.bbox.width()
-        
-    @property
-    def height_um(self) -> float:
-        return self.bbox.height()
-    
-    # Calculate minimum visible feature size at target DPI
-    # pixels = inches * dpi, so µm_per_pixel = design_width_µm / (fig_width_inches * dpi)
-    
-    @cached_property
-    def um_per_pixel(self) -> float:
-        return self.width_um / (self.settings.fig_width_inch(self.width_um) * 72)
-    
-    @cached_property
-    def min_feature_size_um(self):
-        return self.um_per_pixel * 2  # Features smaller than 2 pixels won't be visible
-    
-    @cached_property
-    def simplify_tolerance_um(self):
-        return self.um_per_pixel * 0.5  # Simplify to half-pixel precision
-    
-    @property
-    def pt_per_inch(self) -> float:
-        return 72.0
-        
-    @cached_property
-    def fig_width_pt(self) -> float:
-        return self.settings.fig_width_inch(self.width_um) * self.pt_per_inch
-    
-    @cached_property
-    def fig_height_pt(self) -> float:
-        return self.scale * self.height_um
-    
-    @cached_property
-    def scale(self) -> float:
-        return self.fig_width_pt / self.width_um
-        
-
 class ExportCancelledError(BaseException):
     """Raised when an export operation is cancelled by the user."""
     pass
-        
+
 
 class VectorFileExporter:
     def __init__(self, 
@@ -92,41 +46,8 @@ class VectorFileExporter:
         self.settings = settings
         self.progress_reporter = progress_reporter
         
-        layer_indexes: List[int]
-        if self.settings.custom_layers == '':
-            layer_indexes = self.visible_layer_indexes()
-        else:
-            layer_indexes
+        self.design_info = DesignInfo.for_layout_view(layout_view, settings)
         
-        self.design_info = DesignInfo(bbox=self.cell_view.cell.dbbox(),
-                                      dbu=self.dbu,
-                                      layer_indexes=layer_indexes,
-                                      settings=settings)
-    
-    @property
-    def cell_view(self) -> pya.CellView:
-        return self.layout_view.active_cellview()
-
-    @property
-    def layout(self) -> pya.Layout:
-        return self.cell_view.layout()
-        
-    @property
-    def dbu(self) -> float:
-        return self.layout.dbu
-
-    def visible_layer_indexes(self) -> List[int]:
-        idxs = []
-        for lref in self.layout_view.each_layer():
-            if lref.visible and lref.valid:
-                if lref.layer_index() == -1:  # hidden by the user
-                    continue
-                # print(f"layer is visible, name={lref.name}, idx={lref.layer_index()}, "
-                #       f"marked={lref.marked} cellview={lref.cellview()}, "
-                #      f"source={lref.source}")
-                idxs.append(lref.layer_index())
-        return idxs
-    
     def create_painter(self) -> pya.QPainter:
         painter: pya.QPainter
     
@@ -166,8 +87,10 @@ class VectorFileExporter:
         return painter
 
     def prepare_painter(self, painter: pya.QPainter):
+        dbu = self.design_info.dbu
+    
         pen = pya.QPen(pya.QColor('black'))
-        pen.setWidthF(self.dbu)
+        pen.setWidthF(dbu)
         painter.setPen(pen)
 
         # brush = pya.QBrush(pya.QColor(200, 200, 200))
@@ -200,7 +123,7 @@ class VectorFileExporter:
         offset_y = (height - self.design_info.fig_height_pt) / 2
         
         # print(f"Bounding box: {design_info.width_um} x {design_info.height_um} µm")
-        # print(f"Target bounding box: {design_info.fig_width_pt:.2f} x {design_info.fig_height_pt:.2f} pt  (scale {design_info.scale:.6f})")
+        # print(f"Target bounding box: {design_info.fig_width_pt:.2f} x {design_info.fig_height_pt:.2f} pt  (scale_um_to_pt {design_info.scale_um_to_pt:.6f})")
         # page_size_mm = page_size.size(pya.QPageSize_Unit.Millimeter)
         # print(f"Page size: {page_size_mm.width} x {page_size_mm.height} mm "
         #       f"({page_size_pt.width} x {page_size_pt.height} pt)")
@@ -209,7 +132,7 @@ class VectorFileExporter:
         painter.translate(offset_x, offset_y + self.design_info.fig_height_pt)
         
         # flip Y (PDF Y is down, layout Y is up)
-        painter.scale(self.design_info.scale, -self.design_info.scale)
+        painter.scale(self.design_info.scale_um_to_pt, -self.design_info.scale_um_to_pt)
         
         # optional: move origin again if needed
         # painter.translate(0, -bbox.height())
@@ -219,21 +142,25 @@ class VectorFileExporter:
                    painter: pya.QPainter,
                    shape: pya.Shape,
                    trans: pya.DTrans) -> bool:
-        dbu = self.dbu
+        dbu = self.design_info.dbu
         font_metrics = pya.QFontMetrics(painter.font)
         def draw_text(shape: pya.Shape):
             text = shape.text
-                      
-            disp = shape.text_trans.disp
+            full_trans = trans * shape.text_trans
+            # full_trans = shape.text_trans
+            disp = full_trans.disp
             world_pos_um = pya.QPointF(disp.x * dbu, - disp.y * dbu)
             
             t = painter.worldTransform
+            
             # Remove Y flip
-            t_no_flip = pya.QTransform(
-                t.m11(),  t.m12(),  0,
-                t.m21(), -t.m22(),  0,
-                t.dx(),   t.dy()
-            )
+            t_no_flip = pya.QTransform(t)
+            t_no_flip.scale(1.0, -1.0)
+            # t_no_flip = pya.QTransform(
+            #    t.m11(),  t.m12(),  0,
+            #    t.m21(), -t.m22(),  0,
+            #    t.dx(),   t.dy()
+            #)
             device_pos = t_no_flip.map(world_pos_um)
 
             text_rect = font_metrics.boundingRect(text.string)
@@ -258,7 +185,10 @@ class VectorFileExporter:
             
             painter.save()
             painter.resetTransform()  # no scaling, no flipping
-            painter.drawText(pya.QPointF(x, y), text.string)
+            painter.translate(pya.QPointF(x, y))
+            # painter.rotate(-full_trans.rot() * 90)
+            painter.drawText(0, 0, text.string)
+            # painter.drawText(pya.QPointF(x, y), text.string)
             painter.restore()
         
         def draw_polygon(p: pya.DPolygon):
@@ -284,7 +214,8 @@ class VectorFileExporter:
                 # NOTE: do not log, hotspot
                 # if Debugging.DEBUG:
                 #    debug(f"VectorFileExporter.draw_shape: {shape} is too small ({bbox.width()} x {bbox.height()} µm)")
-                return False
+                #return False
+                pass
         
         if shape.is_box():
             b = shape.dbox.transformed(trans)
@@ -301,8 +232,8 @@ class VectorFileExporter:
         return True
 
     def paint_layers(self, painter: pya.QPainter, preview_mode: bool):
-        top_cell = self.cell_view.cell
-        dbu = self.dbu
+        top_cell = self.design_info.cell
+        dbu = self.design_info.dbu
         bbox = self.design_info.bbox
                 
         new_page_needed = False
@@ -361,20 +292,39 @@ class VectorFileExporter:
                 new_page_needed = False
 
     def render_preview(self, dpi: int) -> pya.QImage:
-        size_inch = self.settings.page_size().size(pya.QPageSize_Unit.Inch)
-        image = pya.QImage(size_inch.width * dpi, size_inch.height * dpi, pya.QImage.Format_ARGB32)
-        image.fill(pya.Qt.white)
-
-        painter = pya.QPainter(image)
-        self.prepare_painter(painter)
-        painter.setRenderHint(pya.QPainter.Antialiasing)
-        try:
-            pen = pya.QPen(pya.QColor('black'))
-            pen.setWidthF(self.dbu)
-            painter.setPen(pen)
+        page_size_pt = self.settings.page_size().sizePoints()
+        px_per_pt = dpi / 72.0
         
+        image = pya.QImage(int(page_size_pt.width * px_per_pt), 
+                           int(page_size_pt.height * px_per_pt),
+                           pya.QImage.Format_ARGB32)
+        image.fill(pya.Qt.blue)
+        
+        painter = pya.QPainter(image)
+        painter.setRenderHint(pya.QPainter.Antialiasing)
+        
+        # Pen width in layout units (µm)
+        pen = pya.QPen(pya.QColor('black'))
+        pen.setWidthF(max(self.design_info.dbu, self.design_info.um_per_pixel))
+        painter.setPen(pen)
+        
+        # Layout → page scaling (points) and centering
+        self.prepare_painter(painter)
+        
+        # Pixel scaling (points → pixels)
+        painter.scale(px_per_pt, px_per_pt)
+        
+        painter.save()
+        painter.resetTransform()
+        painter.setPen(pya.QPen(pya.QColor('red')))
+        painter.drawRect(0, 0, image.width(), image.height())
+        painter.restore()
+        
+        try:
             self.paint_layers(painter=painter, preview_mode=True)
         except ExportCancelledError as e:
+            if Debugging.DEBUG:
+                debug(f"VectorFileExporter.render_preview caught exception {e}")
             raise
         finally:
             painter.end()
@@ -385,7 +335,7 @@ class VectorFileExporter:
         self.prepare_painter(painter)
         try:
             pen = pya.QPen(pya.QColor('black'))
-            pen.setWidthF(self.dbu)
+            pen.setWidthF(self.design_info.dbu)
             painter.setPen(pen)
         
             self.paint_layers(painter=painter, preview_mode=False)

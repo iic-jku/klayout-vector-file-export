@@ -85,7 +85,7 @@ class VectorFileExportSettings:
             case ContentScaling.FIGURE_WIDTH_MM:
                 return self.content_scaling_value / 25.4
             case ContentScaling.SCALING:
-                return width_um * self.content_scaling_value
+                return width_um * self.content_scaling_value / 1e3 / 25.4
             case _:
                 raise NotImplementedError(f"Unhandled enum case {self.content_scaling_style}")
     

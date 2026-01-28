@@ -26,6 +26,7 @@ from klayout_plugin_utils.debugging import debug, Debugging
 from klayout_plugin_utils.file_system_helpers import FileSystemHelpers
 from klayout_plugin_utils.qt_helpers import qmessagebox_critical
 
+from design_info import DesignInfo
 from progress_reporter import ProgressReporter
 from vector_file_export_settings import *
 from vector_file_exporter import VectorFileExporter, ExportCancelledError
@@ -84,6 +85,10 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         self.page.custom_layer_selection_rb.toggled.connect(self.on_layer_radio_buttons_changed)
 
         self.page.browse_save_path_pb.clicked.connect(self.on_browse_save_path)
+
+        self.page.figure_width_le.textEdited.connect(self.on_figure_width_changed)
+        self.page.scaling_le.textEdited.connect(self.on_scaling_value_changed)
+        self.page.custom_layers_le.textEdited.connect(self.on_custom_layers_changed)
 
         self.scene = pya.QGraphicsScene(self)
         self.page.preview_gv.setScene(self.scene)        
@@ -196,7 +201,7 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
             content_scaling_value = float(self.page.figure_width_le.text)
         else:
             content_scaling_style = ContentScaling.SCALING
-            content_scaling_value = float(self.page.scaling_le.text) / 100.0
+            content_scaling_value = float(self.page.scaling_le.text)
 
         custom_layers: str
         if self.page.all_visible_layers_rb.checked:        
@@ -259,7 +264,7 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
                 self.page.figure_width_rb.setChecked(False)
                 self.page.scaling_rb.setChecked(True)
                 self.page.figure_width_le.setText("")
-                self.page.scaling_le.setText(f"{settings.content_scaling_value * 100}")
+                self.page.scaling_le.setText(f"{settings.content_scaling_value:.4g}")
 
         if settings.custom_layers.strip() == '':
             self.page.all_visible_layers_rb.setChecked(True)
@@ -273,6 +278,9 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         self.on_orientation_radio_buttons_changed()
         self.on_scaling_radio_buttons_changed()
         self.on_layer_radio_buttons_changed()
+        
+        design_info = DesignInfo.for_layout_view(pya.LayoutView.current(), settings)
+        self.page.bounding_box_lb.setText(f"{design_info.width_um:.3g} µm x {design_info.height_um:.3g} µm")
         
         exporter = VectorFileExporter(layout_view=pya.LayoutView.current(),
                                       settings=settings,
@@ -288,6 +296,12 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         except ExportCancelledError as e:
             pass
         
+        match settings.content_scaling_style:
+            case ContentScaling.FIGURE_WIDTH_MM:
+                self.on_figure_width_changed()
+            case ContentScaling.SCALING:
+                self.on_scaling_changed()
+        
     def on_orientation_radio_buttons_changed(self):
         pass
 
@@ -296,6 +310,31 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
 
     def on_layer_radio_buttons_changed(self):
         pass
+    
+    def on_figure_width_changed(self):
+        if Debugging.DEBUG:
+            debug("VectorFileExportDialog.on_figure_width_changed")
+    
+        settings = self.settings_from_ui()
+        design_info = DesignInfo.for_layout_view(pya.LayoutView.current(), settings)
+        
+        self.page.figure_width_rb.setChecked(True)
+        self.page.scaling_le.clear()
+        self.page.scaling_le.setPlaceholderText(f"{design_info.scaling:.6f}")
+    
+    def on_scaling_value_changed(self):
+        if Debugging.DEBUG:
+            debug("VectorFileExportDialog.on_scaling_value_changed")
+            
+        settings = self.settings_from_ui()
+        design_info = DesignInfo.for_layout_view(pya.LayoutView.current(), settings)
+        
+        self.page.scaling_rb.setChecked(True)
+        self.page.figure_width_le.clear()
+        self.page.figure_width_le.setPlaceholderText(f"{design_info.fig_width_mm}")
+    
+    def on_custom_layers_changed(self):
+        self.page.custom_layer_selection_rb.setChecked(True)
     
     def on_browse_save_path(self):
         if Debugging.DEBUG:
