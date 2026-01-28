@@ -46,12 +46,10 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
             ui_file.close()
 
         self.bottom = pya.QHBoxLayout()
-        self.resetButton = pya.QPushButton('Reset')
+        
         self.exportButton = pya.QPushButton('Export')
         self.cancelButton = pya.QPushButton('Cancel')
-        
-        self.bottom.addWidget(self.resetButton)
-        
+                
         self.bottom.addStretch(1)
         
         self.bottom.addWidget(self.exportButton)
@@ -61,7 +59,6 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         layout.addWidget(self.page)
         layout.addLayout(self.bottom)
         
-        self.resetButton.clicked.connect(self.on_reset)
         self.exportButton.clicked.connect(self.on_export)
         self.cancelButton.clicked.connect(self.on_cancel)
         
