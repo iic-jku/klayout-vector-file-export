@@ -86,9 +86,9 @@ class VectorFileExportPluginFactory(pya.PluginFactory):
 
         mw = pya.MainWindow.instance()
         self.dialog = VectorFileExportDialog(settings=settings, parent=mw)
-
         result = self.dialog.exec_()
         if result == 1:
+            settings = self.dialog.settings_from_ui()
             FileSystemHelpers.reveal_in_file_manager(settings.output_path)
 
     def reset_menu(self):
