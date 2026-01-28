@@ -22,6 +22,8 @@ import os
 from pathlib import Path
 import traceback
 
+from klayout_plugin_utils.debugging import debug, Debugging
+from klayout_plugin_utils.file_system_helpers import FileSystemHelpers
 from klayout_plugin_utils.qt_helpers import qmessagebox_critical
 
 from progress_reporter import ProgressReporter
