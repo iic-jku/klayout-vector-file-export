@@ -1,5 +1,9 @@
 # KLayout Plugin: Vector File Export (PDF, SVG)
 
+<p align="center">
+<img align="middle" src="doc/klayout-vector-file-export-screenshot.jpg" alt="KLayout Move Quickly Tool" width="800"/>
+</p>
+
 * Export your layout as PDF or SVG
    * precise scaling factor
    * choose which layers to include
