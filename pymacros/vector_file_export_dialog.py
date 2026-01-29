@@ -206,11 +206,13 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
             content_scaling_style = ContentScaling.SCALING
             content_scaling_value = float(self.page.scaling_le.text)
 
-        custom_layers: str
-        if self.page.all_visible_layers_rb.checked:        
-            custom_layers = ''
+        layer_selection_mode: LayerSelectionMode
+        if self.page.all_visible_layers_rb.checked:
+            layer_selection_mode = LayerSelectionMode.ALL_VISIBLE_LAYERS
         elif self.page.custom_layer_selection_rb.checked:
-            custom_layers = self.page.custom_layers_le.text
+            layer_selection_mode = LayerSelectionMode.CUSTOM_LAYER_LIST
+
+        custom_layers = self.page.custom_layers_le.text.strip()
         
         return VectorFileExportSettings(
             file_format=file_format,
@@ -221,6 +223,7 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
             content_scaling_style=content_scaling_style,
             content_scaling_value=content_scaling_value,
             layer_output_style=layer_output_style,
+            layer_selection_mode=layer_selection_mode,
             custom_layers=custom_layers
         )
     
@@ -276,13 +279,16 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         self.page.figure_height_le.setText(f"{design_info.fig_height_mm:.6f}")
         self.page.scaling_le.setText(f"{design_info.scaling:.4f}")
 
-        if settings.custom_layers.strip() == '':
-            self.page.all_visible_layers_rb.setChecked(True)
-            self.page.custom_layer_selection_rb.setChecked(False)
-        else:
-            self.page.all_visible_layers_rb.setChecked(False)
-            self.page.custom_layer_selection_rb.setChecked(True)
-            
+        match settings.layer_selection_mode:
+            case LayerSelectionMode.ALL_VISIBLE_LAYERS:
+                self.page.all_visible_layers_rb.setChecked(True)
+                self.page.custom_layer_selection_rb.setChecked(False)
+            case LayerSelectionMode.CUSTOM_LAYER_LIST:
+                self.page.all_visible_layers_rb.setChecked(False)
+                self.page.custom_layer_selection_rb.setChecked(True)
+            case _:
+                raise NotImplementedError(f"Unhandled enum case {settings.layer_selection_mode}")            
+        
         self.page.custom_layers_le.setText(settings.custom_layers)
         
         self.on_orientation_radio_buttons_changed()

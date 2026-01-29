@@ -59,15 +59,18 @@ class DesignInfo:
         layout = cell.layout()
         
         layer_indexes: List[int]
-        if settings.custom_layers == '':
-            layer_indexes = visible_layer_indexes()
-        else:
-            layer_list_parse_result = LayerList.parse_layer_list_string(settings.custom_layers)
-            if len(layer_list_parse_result.errors) == 0:
-                layer_indexes = [layout.find_layer(l) for l in layer_list_parse_result.result.layers]
-            else: 
-                # TODO: report error
+        match settings.layer_selection_mode:
+            case LayerSelectionMode.ALL_VISIBLE_LAYERS:
                 layer_indexes = visible_layer_indexes()
+            case LayerSelectionMode.CUSTOM_LAYER_LIST:
+                layer_list_parse_result = LayerList.parse_layer_list_string(settings.custom_layers)
+                if len(layer_list_parse_result.errors) == 0:
+                    layer_indexes = [layout.find_layer(l) for l in layer_list_parse_result.result.layers]
+                else: 
+                    print(f"ERROR: failed to parse layer list {settings.custom_layers} due to errors: {layer_list_parse_result.errors}")
+                    layer_indexes = visible_layer_indexes()
+            case _:
+                raise NotImplementedError(f"Unhandled enum case {settings.layer_selection_mode}")            
         
         return DesignInfo(
             layout_view=layout_view,

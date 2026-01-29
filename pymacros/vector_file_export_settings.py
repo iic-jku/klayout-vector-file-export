@@ -56,13 +56,21 @@ class PageOrientation(StrEnum):
     PORTRAIT = 'portrait'
     LANDSCAPE = 'landscape'
 
+
 class ContentScaling(StrEnum):
     FIGURE_WIDTH_MM = 'figure_width_mm'
     SCALING = 'scaling'
 
+
 class GeometryReduction(StrEnum):
     NONE = 'none'
     OMIT_SMALL_POLYGONS = 'omit_small_polygons'
+
+
+class LayerSelectionMode(StrEnum):
+    ALL_VISIBLE_LAYERS = 'all_visible_layers'
+    CUSTOM_LAYER_LIST = 'custom_layer_list'
+
 
 @dataclass
 class VectorFileExportSettings:
@@ -75,7 +83,8 @@ class VectorFileExportSettings:
     content_scaling_value: float = 120.0
     geometry_reduction: GeometryReduction = GeometryReduction.OMIT_SMALL_POLYGONS
     layer_output_style: LayerOutputStyle = LayerOutputStyle.SINGLE_PAGE
-    custom_layers: str = ""   # empty string means all visible layers
+    layer_selection_mode: LayerSelectionMode = LayerSelectionMode.ALL_VISIBLE_LAYERS
+    custom_layers: str = ""   # only relevant for LayerSelectionMode.CUSTOM_LAYER_LIST
     
     def page_size(self) -> pya.QPageSize:
         return pya.QPageSize(pya.QPageSize.PageSizeId(self.page_format))
@@ -103,6 +112,7 @@ class VectorFileExportSettings:
                 content_scaling_value=float(d['content_scaling_value']),
                 geometry_reduction=GeometryReduction(d['geometry_reduction']),
                 layer_output_style=LayerOutputStyle(d['layer_output_style']),
+                layer_selection_mode=LayerSelectionMode(d['layer_selection_mode']),
                 custom_layers=d['custom_layers']
             )
     
@@ -126,6 +136,7 @@ class VectorFileExportSettings:
             'content_scaling_value': str(self.content_scaling_value),
             'geometry_reduction': self.geometry_reduction.value,
             'layer_output_style': self.layer_output_style.value,
+            'layer_selection_mode': self.layer_selection_mode.value,
             'custom_layers': self.custom_layers
         }
     
