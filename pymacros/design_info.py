@@ -88,19 +88,25 @@ class DesignInfo:
 
     # --------------------------------------------------------
     @cached_property
-    def fig_width_mm(self) -> float:
+    def scale_um_to_mm(self) -> float:
         match self.settings.content_scaling_style:
             case ContentScaling.FIGURE_WIDTH_MM:
-                return self.settings.content_scaling_value
+                # Figure width in mm / layout width in µm
+                return self.settings.content_scaling_value / self.width_um
             case ContentScaling.SCALING:
-                return self.width_um * self.settings.content_scaling_value / 1e3
+                # User gave scaling factor directly (mm / µm)
+                return self.settings.content_scaling_value / 1e3
             case _:
                 raise NotImplementedError(f"Unhandled enum case {self.settings.content_scaling_style}")
             
     @cached_property
-    def scale_um_to_mm(self) -> float:
-        return self.fig_width_mm / self.width_um
+    def fig_width_mm(self) -> float:
+        return self.width_um * self.scale_um_to_mm
 
+    @cached_property
+    def fig_height_mm(self) -> float:
+        return self.height_um * self.scale_um_to_mm
+            
     @cached_property
     def scaling(self) -> float:
         return self.scale_um_to_mm * 1e3
