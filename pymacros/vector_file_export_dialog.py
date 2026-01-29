@@ -79,7 +79,7 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         
         self.page.portrait_rb.toggled.connect(self.on_orientation_radio_buttons_changed)
         self.page.landscape_rb.toggled.connect(self.on_orientation_radio_buttons_changed)
-        self.page.figure_width_rb.toggled.connect(self.on_scaling_radio_buttons_changed)
+        self.page.figure_size_rb.toggled.connect(self.on_scaling_radio_buttons_changed)
         self.page.scaling_rb.toggled.connect(self.on_scaling_radio_buttons_changed)
         self.page.all_visible_layers_rb.toggled.connect(self.on_layer_radio_buttons_changed)
         self.page.custom_layer_selection_rb.toggled.connect(self.on_layer_radio_buttons_changed)
@@ -87,6 +87,7 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         self.page.browse_save_path_pb.clicked.connect(self.on_browse_save_path)
 
         self.page.figure_width_le.textEdited.connect(self.on_figure_width_changed)
+        self.page.figure_height_le.textEdited.connect(self.on_figure_height_changed)
         self.page.scaling_le.textEdited.connect(self.on_scaling_value_changed)
         self.page.custom_layers_le.textEdited.connect(self.on_custom_layers_changed)
 
@@ -196,7 +197,7 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         
         content_scaling_style: ContentScaling
         content_scaling_value: float
-        if self.page.figure_width_rb.checked:
+        if self.page.figure_size_rb.checked:
             content_scaling_style = ContentScaling.FIGURE_WIDTH_MM
             content_scaling_value = float(self.page.figure_width_le.text)
         else:
@@ -254,16 +255,20 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
                 self.page.portrait_rb.setChecked(False)
                 self.page.landscape_rb.setChecked(True)
         
+        design_info = DesignInfo.for_layout_view(pya.LayoutView.current(), settings)
+        
         match settings.content_scaling_style:
             case ContentScaling.FIGURE_WIDTH_MM:
-                self.page.figure_width_rb.setChecked(True)
+                self.page.figure_size_rb.setChecked(True)
                 self.page.scaling_rb.setChecked(False)
-                self.page.figure_width_le.setText(f"{settings.content_scaling_value}")
+                self.page.figure_width_le.setText(f"{design_info.fig_width_mm}")
+                self.page.figure_height_le.setText(f"{design_info.fig_height_mm}")
                 self.page.scaling_le.setText("")
             case ContentScaling.SCALING:
-                self.page.figure_width_rb.setChecked(False)
+                self.page.figure_size_rb.setChecked(False)
                 self.page.scaling_rb.setChecked(True)
                 self.page.figure_width_le.setText("")
+                self.page.figure_height_le.setText("")
                 self.page.scaling_le.setText(f"{settings.content_scaling_value:.4g}")
 
         if settings.custom_layers.strip() == '':
@@ -279,7 +284,6 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         self.on_scaling_radio_buttons_changed()
         self.on_layer_radio_buttons_changed()
         
-        design_info = DesignInfo.for_layout_view(pya.LayoutView.current(), settings)
         self.page.bounding_box_lb.setText(f"{design_info.width_um:.3f} µm x {design_info.height_um:.3f} µm")
         
         exporter = VectorFileExporter(layout_view=pya.LayoutView.current(),
@@ -315,16 +319,30 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         if Debugging.DEBUG:
             debug("VectorFileExportDialog.on_figure_width_changed")
     
-        self.page.figure_width_rb.setChecked(True)
+        self.page.figure_size_rb.setChecked(True)
         
         settings = self.settings_from_ui()
         design_info = DesignInfo.for_layout_view(pya.LayoutView.current(), settings)
-        
+
+        self.page.figure_height_le.setText(f"{design_info.fig_height_mm}")        
+        self.page.scaling_le.setText(f"{design_info.scaling:.6f}")
+    
+    def on_figure_height_changed(self):
         if Debugging.DEBUG:
-            debug(f"VectorFileExportDialog.on_figure_width_changed: device_info is {design_info}")
+            debug("VectorFileExportDialog.on_figure_height_changed")
+    
+        self.page.figure_size_rb.setChecked(True)
+
+        settings = self.settings_from_ui()
+        design_info = DesignInfo.for_layout_view(pya.LayoutView.current(), settings)
         
-        self.page.scaling_le.clear()
-        self.page.scaling_le.setPlaceholderText(f"{design_info.scaling:.6f}")
+        width_mm = design_info.width_um / design_info.height_um * float(self.page.figure_height_le.text)
+        self.page.figure_width_le.setText(f"{width_mm:.6f}")
+
+        settings = self.settings_from_ui()
+        design_info = DesignInfo.for_layout_view(pya.LayoutView.current(), settings)
+
+        self.page.scaling_le.setText(f"{design_info.scaling:.6f}")
     
     def on_scaling_value_changed(self):
         if Debugging.DEBUG:
@@ -335,8 +353,8 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         settings = self.settings_from_ui()
         design_info = DesignInfo.for_layout_view(pya.LayoutView.current(), settings)
         
-        self.page.figure_width_le.clear()
-        self.page.figure_width_le.setPlaceholderText(f"{design_info.fig_width_mm}")
+        self.page.figure_width_le.setText(f"{design_info.fig_width_mm}")
+        self.page.figure_height_le.setText(f"{design_info.fig_height_mm}")        
     
     def on_custom_layers_changed(self):
         self.page.custom_layer_selection_rb.setChecked(True)
