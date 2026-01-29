@@ -77,6 +77,8 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
             format_title = self.format_page_size(page_id)
             self.page.page_format_cob.addItem(format_title, page_id)
         
+        self.page.file_format_cob.currentIndexChanged.connect(self.on_file_format_changed)
+
         self.page.portrait_rb.toggled.connect(self.on_orientation_radio_buttons_changed)
         self.page.landscape_rb.toggled.connect(self.on_orientation_radio_buttons_changed)
         self.page.figure_size_rb.toggled.connect(self.on_scaling_radio_buttons_changed)
@@ -305,6 +307,16 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
                 self.on_figure_width_changed()
             case ContentScaling.SCALING:
                 self.on_scaling_changed()
+        
+    def on_file_format_changed(self):
+        old_path = self.page.save_path_le.text.strip()
+        if old_path != '':
+            path = Path(old_path)
+            settings = self.settings_from_ui()
+            new_suffix = settings.file_format.value
+            if path.suffix != new_suffix:
+                path = path.with_suffix(new_suffix)
+            self.page.save_path_le.setText(str(path))
         
     def on_orientation_radio_buttons_changed(self):
         pass
