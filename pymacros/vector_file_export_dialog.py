@@ -280,7 +280,7 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         self.on_layer_radio_buttons_changed()
         
         design_info = DesignInfo.for_layout_view(pya.LayoutView.current(), settings)
-        self.page.bounding_box_lb.setText(f"{design_info.width_um:.3g} µm x {design_info.height_um:.3g} µm")
+        self.page.bounding_box_lb.setText(f"{design_info.width_um:.3f} µm x {design_info.height_um:.3f} µm")
         
         exporter = VectorFileExporter(layout_view=pya.LayoutView.current(),
                                       settings=settings,
