@@ -94,7 +94,7 @@ class VectorFileExportSettings:
             d = pya.AbstractMenu.unpack_key_binding(settings_str)
             
             return VectorFileExportSettings(
-                file_format=d['file_format'],
+                file_format=VectorFileFormat(d['file_format']),
                 output_path=Path(d['output_path']),
                 title=d['title'],
                 page_format=int(d['page_format']),
