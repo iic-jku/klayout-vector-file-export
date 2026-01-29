@@ -82,7 +82,7 @@ class VectorFileExportPluginFactory(pya.PluginFactory):
             print(f"ERROR: Failed to restore export settings, proceeding with defaults due to exception: {e}")
             settings = VectorFileExportSettings()
         
-        settings.output_path = Path(f"{cw.cell.name}_export.pdf")
+        settings.output_path = Path(f"{cw.cell.name}_export{settings.file_format.value}")
 
         mw = pya.MainWindow.instance()
         self.dialog = VectorFileExportDialog(settings=settings, parent=mw)
