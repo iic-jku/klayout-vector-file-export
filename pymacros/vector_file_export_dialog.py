@@ -91,8 +91,8 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         self.page.scaling_le.textEdited.connect(self.on_scaling_value_changed)
         self.page.custom_layers_le.textEdited.connect(self.on_custom_layers_changed)
 
-        self.scene = pya.QGraphicsScene(self)
-        self.page.preview_gv.setScene(self.scene)        
+        # self.scene = pya.QGraphicsScene(self)
+        # self.page.preview_gv.setScene(self.scene)        
         
         self.update_ui_from_settings(settings)
 
@@ -286,19 +286,19 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         
         self.page.bounding_box_lb.setText(f"{design_info.width_um:.3f} µm x {design_info.height_um:.3f} µm")
         
-        exporter = VectorFileExporter(layout_view=pya.LayoutView.current(),
-                                      settings=settings,
-                                      progress_reporter=None)
-        
-        try:
-            img = exporter.render_preview(dpi=300)
-            pm = pya.QPixmap.fromImage(img)
-            self.scene.clear()
-            self.scene.addPixmap(pm)
-            self.scene.setSceneRect(pya.QRectF(pm.rect()))
-            self.page.preview_gv.fitInView(self.scene.sceneRect, pya.Qt.KeepAspectRatio)
-        except ExportCancelledError as e:
-            pass
+        # exporter = VectorFileExporter(layout_view=pya.LayoutView.current(),
+        #                               settings=settings,
+        #                               progress_reporter=None)
+        # 
+        # try:
+        #     img = exporter.render_preview(dpi=300)
+        #     pm = pya.QPixmap.fromImage(img)
+        #     self.scene.clear()
+        #     self.scene.addPixmap(pm)
+        #     self.scene.setSceneRect(pya.QRectF(pm.rect()))
+        #     self.page.preview_gv.fitInView(self.scene.sceneRect, pya.Qt.KeepAspectRatio)
+        # except ExportCancelledError as e:
+        #     pass
         
         match settings.content_scaling_style:
             case ContentScaling.FIGURE_WIDTH_MM:
