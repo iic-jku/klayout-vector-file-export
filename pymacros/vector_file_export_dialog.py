@@ -265,17 +265,16 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
             case ContentScaling.FIGURE_WIDTH_MM:
                 self.page.figure_size_rb.setChecked(True)
                 self.page.scaling_rb.setChecked(False)
-                self.page.figure_width_le.setText(f"{design_info.fig_width_mm}")
-                self.page.figure_height_le.setText(f"{design_info.fig_height_mm}")
-                self.page.scaling_le.setText("")
             case ContentScaling.SCALING:
                 self.page.figure_size_rb.setChecked(False)
                 self.page.scaling_rb.setChecked(True)
-                self.page.figure_width_le.setText("")
-                self.page.figure_height_le.setText("")
-                self.page.scaling_le.setText(f"{settings.content_scaling_value:.4g}")
             case _:
                 raise NotImplementedError(f"Unhandled enum case {settings.content_scaling_style}")
+            
+        
+        self.page.figure_width_le.setText(f"{design_info.fig_width_mm:.6f}")
+        self.page.figure_height_le.setText(f"{design_info.fig_height_mm:.6f}")
+        self.page.scaling_le.setText(f"{design_info.scaling:.4f}")
 
         if settings.custom_layers.strip() == '':
             self.page.all_visible_layers_rb.setChecked(True)
@@ -342,7 +341,7 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         settings = self.settings_from_ui()
         design_info = DesignInfo.for_layout_view(pya.LayoutView.current(), settings)
 
-        self.page.figure_height_le.setText(f"{design_info.fig_height_mm}")        
+        self.page.figure_height_le.setText(f"{design_info.fig_height_mm:.6f}")        
         self.page.scaling_le.setText(f"{design_info.scaling:.6f}")
     
     def on_figure_height_changed(self):
@@ -371,8 +370,8 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         settings = self.settings_from_ui()
         design_info = DesignInfo.for_layout_view(pya.LayoutView.current(), settings)
         
-        self.page.figure_width_le.setText(f"{design_info.fig_width_mm}")
-        self.page.figure_height_le.setText(f"{design_info.fig_height_mm}")        
+        self.page.figure_width_le.setText(f"{design_info.fig_width_mm:.6f}")
+        self.page.figure_height_le.setText(f"{design_info.fig_height_mm:.6f}")        
     
     def on_custom_layers_changed(self):
         self.page.custom_layer_selection_rb.setChecked(True)
