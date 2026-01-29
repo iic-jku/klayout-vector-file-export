@@ -236,6 +236,8 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
                 format_choice='PDF (page per layer)'
             case (VectorFileFormat.SVG, _):
                 format_choice='SVG'
+            case _:
+                raise NotImplementedError(f"Unhandled enum case {(settings.file_format, settings.layer_output_style)}")
         idx = self.page.file_format_cob.findText(format_choice)
         if idx >= 0:
             self.page.file_format_cob.setCurrentIndex(idx)
@@ -272,6 +274,8 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
                 self.page.figure_width_le.setText("")
                 self.page.figure_height_le.setText("")
                 self.page.scaling_le.setText(f"{settings.content_scaling_value:.4g}")
+            case _:
+                raise NotImplementedError(f"Unhandled enum case {settings.content_scaling_style}")
 
         if settings.custom_layers.strip() == '':
             self.page.all_visible_layers_rb.setChecked(True)
@@ -307,7 +311,9 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
                 self.on_figure_width_changed()
             case ContentScaling.SCALING:
                 self.on_scaling_changed()
-        
+            case _:
+                raise NotImplementedError(f"Unhandled enum case {settings.content_scaling_style}")
+
     def on_file_format_changed(self):
         old_path = self.page.save_path_le.text.strip()
         if old_path != '':
@@ -389,7 +395,9 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
                 case VectorFileFormat.SVG:
                     file_filter = 'SVG (*.svg)'
                     suffix = '.svg'
-                
+                case _:
+                    raise NotImplementedError(f"Unhandled enum case {settings.file_format}")
+
             file_path_str = pya.QFileDialog.getSaveFileName(
                 self,               
                 "Select Export File Path",
