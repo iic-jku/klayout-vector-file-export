@@ -315,21 +315,26 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         if Debugging.DEBUG:
             debug("VectorFileExportDialog.on_figure_width_changed")
     
+        self.page.figure_width_rb.setChecked(True)
+        
         settings = self.settings_from_ui()
         design_info = DesignInfo.for_layout_view(pya.LayoutView.current(), settings)
         
-        self.page.figure_width_rb.setChecked(True)
+        if Debugging.DEBUG:
+            debug(f"VectorFileExportDialog.on_figure_width_changed: device_info is {design_info}")
+        
         self.page.scaling_le.clear()
         self.page.scaling_le.setPlaceholderText(f"{design_info.scaling:.6f}")
     
     def on_scaling_value_changed(self):
         if Debugging.DEBUG:
             debug("VectorFileExportDialog.on_scaling_value_changed")
+
+        self.page.scaling_rb.setChecked(True)
             
         settings = self.settings_from_ui()
         design_info = DesignInfo.for_layout_view(pya.LayoutView.current(), settings)
         
-        self.page.scaling_rb.setChecked(True)
         self.page.figure_width_le.clear()
         self.page.figure_width_le.setPlaceholderText(f"{design_info.fig_width_mm}")
     
