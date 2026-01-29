@@ -80,15 +80,6 @@ class VectorFileExportSettings:
     def page_size(self) -> pya.QPageSize:
         return pya.QPageSize(pya.QPageSize.PageSizeId(self.page_format))
     
-    def fig_width_inch(self, width_um: float) -> float:
-        match self.content_scaling_style:
-            case ContentScaling.FIGURE_WIDTH_MM:
-                return self.content_scaling_value / 25.4
-            case ContentScaling.SCALING:
-                return width_um * self.content_scaling_value / 1e3 / 25.4
-            case _:
-                raise NotImplementedError(f"Unhandled enum case {self.content_scaling_style}")
-    
     @classmethod
     def load(cls) -> VectorFileExportSettings:
         if Debugging.DEBUG:

@@ -28,6 +28,9 @@ from klayout_plugin_utils.layer_list_string import LayerList
 from vector_file_export_settings import *
 
 
+MM_PER_PT = 25.4 / 72.0
+
+
 @dataclass
 class DesignInfo:
     layout_view: pya.LayoutView
@@ -82,13 +85,58 @@ class DesignInfo:
     @property
     def height_um(self) -> float:
         return self.bbox.height()
+
+    # --------------------------------------------------------
+    @cached_property
+    def fig_width_mm(self) -> float:
+        match self.settings.content_scaling_style:
+            case ContentScaling.FIGURE_WIDTH_MM:
+                return self.settings.content_scaling_value
+            case ContentScaling.SCALING:
+                return self.width_um * self.settings.content_scaling_value / 1e3
+            case _:
+                raise NotImplementedError(f"Unhandled enum case {self.settings.content_scaling_style}")
+            
+    @cached_property
+    def scale_um_to_mm(self) -> float:
+        return self.fig_width_mm / self.width_um
+
+    @cached_property
+    def scaling(self) -> float:
+        return self.scale_um_to_mm * 1e3
     
+    # --------------------------------------------------------
+    
+    @cached_property
+    def fig_width_pt(self) -> float:
+        """
+        NOTE: Used during export
+        """
+        return self.fig_width_mm / MM_PER_PT
+
+    @cached_property
+    def fig_height_pt(self) -> float:
+        return self.scale_um_to_pt * self.height_um
+            
+    @cached_property
+    def scale_um_to_pt(self) -> float:
+        """
+        NOTE: this is only to be used for "export" with QPainter
+              we want to keep things metric as far as possible
+        """
+        return self.fig_width_pt / self.width_um
+        
     # Calculate minimum visible feature size at target DPI
     # pixels = inches * dpi, so µm_per_pixel = design_width_µm / (fig_width_inches * dpi)
     
     @cached_property
     def um_per_pixel(self) -> float:
-        return self.width_um / (self.settings.fig_width_inch(self.width_um) * 72)
+        """
+        How many µm does one rendered pixel represent in the exported figure?
+        """
+        # return self.width_um / (self.fig_width_inch * 72)
+        # In QPainter export: 1 pt == 1 pixel
+        return 1.0 / self.scale_um_to_pt
     
     @cached_property
     def min_feature_size_um(self):
@@ -97,39 +145,11 @@ class DesignInfo:
     @cached_property
     def simplify_tolerance_um(self):
         return self.um_per_pixel * 0.5  # Simplify to half-pixel precision
-    
-    @property
-    def pt_per_inch(self) -> float:
-        return 72.0
-        
-    @cached_property
-    def fig_width_pt(self) -> float:
-        return self.settings.fig_width_inch(self.width_um) * self.pt_per_inch
-    
-    @cached_property
-    def fig_height_pt(self) -> float:
-        return self.scale_um_to_pt * self.height_um
-    
-    @property
-    def mm_per_pt(self) -> float:
-        return 0.35277777777777777
-    
-    @cached_property
-    def fig_width_mm(self) -> float:
-        return round(self.fig_width_pt * self.mm_per_pt, 6)
-    
-    @cached_property
-    def scale_um_to_pt(self) -> float:
-        return self.fig_width_pt / self.width_um
-        
-    @cached_property
-    def scaling(self) -> float:
-        return self.scale_um_to_pt * self.mm_per_pt * 1e3
         
 
 #--------------------------------------------------------------------------------
 
-class LayerListTests(unittest.TestCase):
+class DesignInfoTests(unittest.TestCase):
     def test_scaling_1(self):
         settings = VectorFileExportSettings(
             file_format=VectorFileFormat.PDF,
