@@ -78,6 +78,18 @@ class VectorFileExporter:
                 svg.setFileName(str(output_path))
                 svg.setResolution(72)
                 svg.setTitle(self.settings.title)
+                            
+                # Ensure correct size and scaling
+                page_size_pt = self.settings.page_size().sizePoints()
+
+                # consider QPageSize                
+                # svg.setSize(pya.QSize(int(page_size_pt.width), int(page_size_pt.height)))
+
+                # NOTE: with SVG, we ignore the page related stuff
+                fig_size_pt = pya.QSize(int(self.design_info.fig_width_pt), int(self.design_info.fig_height_pt))
+                svg.setSize(fig_size_pt)
+                svg.setViewBox(pya.QRect(0, 0, fig_size_pt.width, fig_size_pt.height))
+                
                 painter = pya.QPainter(svg)
                 self._svg = svg
                 
@@ -127,16 +139,20 @@ class VectorFileExporter:
         # page_size_mm = page_size.size(pya.QPageSize_Unit.Millimeter)
         # print(f"Page size: {page_size_mm.width} x {page_size_mm.height} mm "
         #       f"({page_size_pt.width} x {page_size_pt.height} pt)")
-        
-        # center on page
-        painter.translate(offset_x, offset_y + self.design_info.fig_height_pt)
-        
-        # flip Y (PDF Y is down, layout Y is up)
-        painter.scale(self.design_info.scale_um_to_pt, -self.design_info.scale_um_to_pt)
-        
-        # optional: move origin again if needed
-        # painter.translate(0, -bbox.height())
-        painter.translate(-self.design_info.bbox.left, -self.design_info.bbox.bottom)
+                
+        match self.settings.file_format:
+            case VectorFileFormat.SVG:  # scale only, do not flip Y
+                painter.translate(-self.design_info.bbox.left, -self.design_info.bbox.bottom)
+                painter.scale(self.design_info.scale_um_to_pt, self.design_info.scale_um_to_pt)
+            case VectorFileFormat.PDF:  # scale and flip Y
+                # center on page
+                painter.translate(offset_x, offset_y + self.design_info.fig_height_pt)
+                
+                # flip Y (PDF Y is down, layout Y is up)
+                painter.scale(self.design_info.scale_um_to_pt, -self.design_info.scale_um_to_pt)
+                
+                # optional: move origin again if needed
+                painter.translate(-self.design_info.bbox.left, -self.design_info.bbox.bottom)
 
     def draw_shape(self,
                    painter: pya.QPainter,
