@@ -79,18 +79,13 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         
         self.page.file_format_cob.currentIndexChanged.connect(self.on_file_format_changed)
 
-        self.page.portrait_rb.toggled.connect(self.on_orientation_radio_buttons_changed)
-        self.page.landscape_rb.toggled.connect(self.on_orientation_radio_buttons_changed)
-        self.page.figure_size_rb.toggled.connect(self.on_scaling_radio_buttons_changed)
-        self.page.scaling_rb.toggled.connect(self.on_scaling_radio_buttons_changed)
-        self.page.all_visible_layers_rb.toggled.connect(self.on_layer_radio_buttons_changed)
-        self.page.custom_layer_selection_rb.toggled.connect(self.on_layer_radio_buttons_changed)
+        self.page.colors_cob.currentIndexChanged.connect(self.on_color_changed)
 
         self.page.browse_save_path_pb.clicked.connect(self.on_browse_save_path)
 
-        self.page.figure_width_le.textEdited.connect(self.on_figure_width_changed)
-        self.page.figure_height_le.textEdited.connect(self.on_figure_height_changed)
-        self.page.scaling_le.textEdited.connect(self.on_scaling_value_changed)
+        self.page.figure_width_sb.valueChanged.connect(self.on_figure_width_changed)
+        self.page.figure_height_sb.valueChanged.connect(self.on_figure_height_changed)
+        self.page.scaling_sb.valueChanged.connect(self.on_scaling_value_changed)
         self.page.custom_layers_le.textEdited.connect(self.on_custom_layers_changed)
 
         # self.scene = pya.QGraphicsScene(self)
@@ -188,7 +183,7 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
             layer_output_style = LayerOutputStyle.PAGE_PER_LAYER
         
         output_path = Path(self.page.save_path_le.text)
-        
+        title = self.page.title_le.text
         page_format = self.page.page_format_cob.currentData()
 
         page_orientation: PageOrientation
@@ -201,10 +196,41 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         content_scaling_value: float
         if self.page.figure_size_rb.checked:
             content_scaling_style = ContentScaling.FIGURE_WIDTH_MM
-            content_scaling_value = float(self.page.figure_width_le.text)
+            content_scaling_value = self.page.figure_width_sb.value
         else:
             content_scaling_style = ContentScaling.SCALING
-            content_scaling_value = float(self.page.scaling_le.text)
+            content_scaling_value = self.page.scaling_sb.text.value
+
+        chosen_color_mode = self.page.colors_cob.currentText
+        color_mode: ColorMode = ColorMode(chosen_color_mode)
+                
+        include_background_color = self.page.include_bg_color_cb.checked
+        
+        font_family = self.page.font_family_cob.currentText
+        
+        font_size_mode: FontSizeMode
+        if self.page.font_size_absolute_rb.checked:
+            font_size_mode = FontSizeMode.ABSOLUTE
+        elif self.page.font_size_relative_rb.checked:
+            font_size_mode = FontSizeMode.PERCENT_OF_FIG_WIDTH
+        
+        font_size_pt = self.page.font_size_pt_sb.value
+        font_size_percent_of_fig_width = self.page.font_size_relative_sb.value
+        
+        text_mode: TextMode
+        chosen_text_mode = self.page.texts_cob.currentText
+        match chosen_text_mode:
+            case 'None': 
+                text_mode = TextMode.NONE
+            case 'All Visible':
+                text_mode = TextMode.ALL_VISIBLE
+            case 'Only Of Top Cell':
+                 text_mode = TextMode.ONLY_TOP_CELL
+            case _:
+                raise NotImplementedError(f"Unhandled text mode {chosen_text_mod}")
+        
+        text_layers_filter_enabled = self.page.text_layers_filter_enabled_cb.checked
+        text_layers = self.page.text_layers_filter_le.text
 
         layer_selection_mode: LayerSelectionMode
         if self.page.all_visible_layers_rb.checked:
@@ -217,16 +243,25 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         return VectorFileExportSettings(
             file_format=file_format,
             output_path=output_path,
-            title=self.page.title_le.text,
+            title=title,
             page_format=page_format,
             page_orientation=page_orientation,
             content_scaling_style=content_scaling_style,
             content_scaling_value=content_scaling_value,
+            color_mode=color_mode,
+            include_background_color=include_background_color,
+            font_family=font_family,
+            font_size_mode=font_size_mode,
+            font_size_pt=font_size_pt,
+            font_size_percent_of_fig_width=font_size_percent_of_fig_width,
+            text_mode=text_mode,
+            text_layers_filter_enabled=text_layers_filter_enabled,
+            text_layers=text_layers,
             layer_output_style=layer_output_style,
             layer_selection_mode=layer_selection_mode,
             custom_layers=custom_layers
         )
-    
+        
     def update_ui_from_settings(self, settings: VectorFileExportSettings):
         if Debugging.DEBUG:
             debug("VectorFileExportDialog.update_ui_from_settings")
@@ -273,12 +308,52 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
                 self.page.scaling_rb.setChecked(True)
             case _:
                 raise NotImplementedError(f"Unhandled enum case {settings.content_scaling_style}")
-            
         
-        self.page.figure_width_le.setText(f"{design_info.fig_width_mm:.6f}")
-        self.page.figure_height_le.setText(f"{design_info.fig_height_mm:.6f}")
-        self.page.scaling_le.setText(f"{design_info.scaling:.4f}")
+        self.page.figure_width_sb.blockSignals(True)
+        self.page.figure_height_sb.blockSignals(True)
+        self.page.scaling_sb.blockSignals(True)
 
+        self.page.figure_width_sb.setValue(design_info.fig_width_mm)
+        self.page.figure_height_sb.setValue(design_info.fig_height_mm)
+        self.page.scaling_sb.setValue(design_info.scaling)
+
+        self.page.figure_width_sb.blockSignals(False)
+        self.page.figure_height_sb.blockSignals(False)
+        self.page.scaling_sb.blockSignals(False)
+        
+        self.page.colors_cob.setCurrentText(settings.color_mode.value)
+        self.page.include_bg_color_cb.setChecked(settings.include_background_color)
+    
+        self.page.font_family_cob.setCurrentText(settings.font_family)
+
+        match settings.font_size_mode:
+            case FontSizeMode.ABSOLUTE:
+                self.page.font_size_absolute_rb.setChecked(True)
+            case FontSizeMode.PERCENT_OF_FIG_WIDTH:
+                self.page.font_size_relative_rb.setChecked(True)
+            case _:
+                raise NotImplementedError(f"Unhandled enum case {settings.font_size_mode}")
+        
+        self.page.font_size_pt_sb.setValue(settings.font_size_pt)
+        
+        self.page.font_size_relative_sb.setValue(settings.font_size_percent_of_fig_width)
+
+        text_mode_index: int
+        match settings.text_mode:
+            case TextMode.NONE:
+                text_mode_index = 0
+            case TextMode.ALL_VISIBLE:
+                text_mode_index = 1
+            case TextMode.ONLY_TOP_CELL:
+                text_mode_index = 2
+            case _:
+                raise NotImplementedError(f"Unhandled enum case {settings.text_mode}")
+        self.page.texts_cob.setCurrentIndex(text_mode_index)
+        
+        self.page.text_layers_filter_enabled_cb.setChecked(settings.text_layers_filter_enabled)
+        
+        self.page.text_layers_filter_le.setText(settings.text_layers)
+        
         match settings.layer_selection_mode:
             case LayerSelectionMode.ALL_VISIBLE_LAYERS:
                 self.page.all_visible_layers_rb.setChecked(True)
@@ -290,10 +365,6 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
                 raise NotImplementedError(f"Unhandled enum case {settings.layer_selection_mode}")            
         
         self.page.custom_layers_le.setText(settings.custom_layers)
-        
-        self.on_orientation_radio_buttons_changed()
-        self.on_scaling_radio_buttons_changed()
-        self.on_layer_radio_buttons_changed()
         
         self.page.bounding_box_lb.setText(f"{design_info.width_um:.3f} µm x {design_info.height_um:.3f} µm")
         
@@ -319,6 +390,8 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
             case _:
                 raise NotImplementedError(f"Unhandled enum case {settings.content_scaling_style}")
 
+        self.on_color_changed()
+
     def on_file_format_changed(self):
         old_path = self.page.save_path_le.text.strip()
         if old_path != '':
@@ -329,15 +402,6 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
                 path = path.with_suffix(new_suffix)
             self.page.save_path_le.setText(str(path))
         
-    def on_orientation_radio_buttons_changed(self):
-        pass
-
-    def on_scaling_radio_buttons_changed(self):
-        pass
-
-    def on_layer_radio_buttons_changed(self):
-        pass
-    
     def on_figure_width_changed(self):
         if Debugging.DEBUG:
             debug("VectorFileExportDialog.on_figure_width_changed")
@@ -347,8 +411,14 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         settings = self.settings_from_ui()
         design_info = DesignInfo.for_layout_view(pya.LayoutView.current(), settings)
 
-        self.page.figure_height_le.setText(f"{design_info.fig_height_mm:.6f}")        
-        self.page.scaling_le.setText(f"{design_info.scaling:.6f}")
+        self.page.figure_height_sb.blockSignals(True)
+        self.page.scaling_sb.blockSignals(True)
+
+        self.page.figure_height_sb.setValue(design_info.fig_height_mm)
+        self.page.scaling_sb.setValue(design_info.scaling)
+        
+        self.page.figure_height_sb.blockSignals(False)
+        self.page.scaling_sb.blockSignals(False)
     
     def on_figure_height_changed(self):
         if Debugging.DEBUG:
@@ -359,14 +429,21 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         settings = self.settings_from_ui()
         design_info = DesignInfo.for_layout_view(pya.LayoutView.current(), settings)
         
-        width_mm = design_info.width_um / design_info.height_um * float(self.page.figure_height_le.text)
-        self.page.figure_width_le.setText(f"{width_mm:.6f}")
+        width_mm = design_info.width_um / design_info.height_um * self.page.figure_height_sb.value
+
 
         settings = self.settings_from_ui()
         design_info = DesignInfo.for_layout_view(pya.LayoutView.current(), settings)
 
-        self.page.scaling_le.setText(f"{design_info.scaling:.6f}")
-    
+        self.page.figure_width_sb.blockSignals(True)
+        self.page.scaling_sb.blockSignals(True)
+
+        self.page.figure_width_sb.setValue(width_mm)
+        self.page.scaling_sb.setValue(design_info.scaling)
+
+        self.page.figure_width_sb.blockSignals(False)
+        self.page.scaling_sb.blockSignals(False)
+
     def on_scaling_value_changed(self):
         if Debugging.DEBUG:
             debug("VectorFileExportDialog.on_scaling_value_changed")
@@ -376,8 +453,17 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         settings = self.settings_from_ui()
         design_info = DesignInfo.for_layout_view(pya.LayoutView.current(), settings)
         
-        self.page.figure_width_le.setText(f"{design_info.fig_width_mm:.6f}")
-        self.page.figure_height_le.setText(f"{design_info.fig_height_mm:.6f}")        
+        self.page.figure_width_sb.blockSignals(True)
+        self.page.figure_height_sb.blockSignals(True)
+        
+        self.page.figure_width_sb.setValue(design_info.fig_width_mm)
+        self.page.figure_height_sb.setValue(design_info.fig_height_mm)
+    
+        self.page.figure_width_sb.blockSignals(False)
+        self.page.figure_height_sb.blockSignals(False)
+    
+    def on_color_changed(self):
+        self.include_bg_color_cb.setEnabled(self.colors_cob.currentText == 'Color')
     
     def on_custom_layers_changed(self):
         self.page.custom_layer_selection_rb.setChecked(True)

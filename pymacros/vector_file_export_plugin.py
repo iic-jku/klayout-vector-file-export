@@ -85,7 +85,12 @@ class VectorFileExportPluginFactory(pya.PluginFactory):
         settings.output_path = Path(f"{cw.cell.name}_export{settings.file_format.value}")
 
         mw = pya.MainWindow.instance()
-        self.dialog = VectorFileExportDialog(settings=settings, parent=mw)
+        try:
+            self.dialog = VectorFileExportDialog(settings=settings, parent=mw)
+        except Exception as e:
+            print(f"ERROR: Failed to open vector file export dialog due to exception: {e}")
+            return
+        
         result = self.dialog.exec_()
         if result == 1:
             settings = self.dialog.settings_from_ui()

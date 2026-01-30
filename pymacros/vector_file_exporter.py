@@ -107,12 +107,19 @@ class VectorFileExporter:
 
         # brush = pya.QBrush(pya.QColor(200, 200, 200))
         # painter.setBrush(brush)
-        
-        fontsize_pt = 0.01 * self.design_info.fig_width_pt  # ~1% of figure width
+
+        font_size_pt: float        
+        match self.settings.font_size_mode:
+            case FontSizeMode.ABSOLUTE:
+                font_size_pt = self.settings.font_size_pt
+            case FontSizeMode.PERCENT_OF_FIG_WIDTH:
+                font_size_pt = self.design_info.fig_width_pt * self.settings.font_size_percent_of_fig_width * 0.01
+            case _:
+                raise NotImplementedError(f"Unhandled enum case {self.settings.font_size_mode}")
         
         font = pya.QFont()
-        font.setFamily('monospace')
-        font.setPointSizeF(fontsize_pt)
+        font.setFamily(self.settings.font_family)
+        font.setPointSizeF(font_size_pt)
         painter.setFont(font)
         
         page_size = self.settings.page_size()
@@ -247,6 +254,31 @@ class VectorFileExporter:
             return False
         return True
 
+    def draw_background(self, painter: pya.QPainter):
+        painter.save()
+        painter.resetTransform()  # device coordinates (points)
+            
+        match self.settings.file_format:
+            case VectorFileFormat.PDF:
+                page_size_pt = self.settings.page_size().sizePoints()
+                rect = pya.QRectF(0, 0, page_size_pt.width, page_size_pt.height)
+    
+            case VectorFileFormat.SVG:
+                rect = painter.viewport()  # svg generator viewport
+    
+            case _:
+                painter.restore()
+                return
+
+        background_color_str = self.design_info.layout_view.get_config('background-color')
+        background_color = pya.QColor(background_color_str)
+        
+        painter.setPen(pya.QPen())
+        painter.setBrush(pya.QBrush(background_color))
+        painter.drawRect(rect)
+        
+        painter.restore()
+    
     def paint_layers(self, painter: pya.QPainter, preview_mode: bool):
         top_cell = self.design_info.cell
         dbu = self.design_info.dbu
@@ -262,10 +294,64 @@ class VectorFileExporter:
         max_preview_shapes = 1000
         if preview_mode:
             painter.drawRect(pya.QRectF(bbox.left, bbox.bottom, bbox.width(), bbox.height()))
+
+        if self.settings.include_background_color:
+            match self.settings.color_mode:
+                case ColorMode.BLACK_AND_WHITE:
+                    pass  # no background color in this mode (avoid black on black)
+                case ColorMode.GREYSCALE:
+                    pass  # no background color in this mode (avoid constrast issues)
+                case ColorMode.COLOR:
+                    self.draw_background(painter)
+        
+        def is_valid_text(lyr_idx, iter, shape) -> bool:
+            match self.settings.text_mode:
+                case TextMode.NONE:
+                    return False
+                case TextMode.ALL_VISIBLE:
+                    pass
+                case TextMode.ONLY_TOP_CELL:
+                    if sh.cell != top_cell:
+                        return False
+                case _:
+                    raise NotImplementedError(f"Unhandled enum case {self.settings.text_mode}")
             
+            if self.settings.text_layers_filter_enabled:
+                return lyr_idx in self.design_info.text_filter_layers_indexes
+            
+            return True
+            
+        layer_properties_by_layer_index = {lp.layer_index(): lp for lp in self.design_info.layout_view.each_layer()}
+        
         drawn_shapes = 0
         for lyr in self.design_info.layer_indexes:
             found_shapes_on_layer = False
+            
+            if self.settings.color_mode != ColorMode.BLACK_AND_WHITE:
+                width_f = painter.pen().widthF
+                
+                lp = layer_properties_by_layer_index[lyr]
+                frame_color = pya.QColor(lp.eff_frame_color())
+                print(f"layer_index={lyr} {lp.name}: eff_frame_color={lp.eff_frame_color()} {frame_color.name()}")
+
+                # frame_color = pya.QColor(lp.eff_fill_color())
+                # fill_color = pya.QColor(lp.eff_fill_color())
+                
+                match self.settings.color_mode:
+                    case ColorMode.BLACK_AND_WHITE:
+                        pass  # should never be called
+                    case ColorMode.GREYSCALE:
+                        # luminosity-based conversion: preserves perceived brightness
+                        gray_value = int(0.299 * frame_color.red +\
+                                         0.587 * frame_color.green +\
+                                         0.114 * frame_color.blue)
+                        pen = pya.QPen(pya.QColor(gray_value, gray_value, gray_value))
+                        pen.setWidthF(width_f)
+                        painter.setPen(pen)
+                    case ColorMode.COLOR:
+                        pen = pya.QPen(frame_color)
+                        pen.setWidthF(width_f)
+                        painter.setPen(pen)
             
             iter = top_cell.begin_shapes_rec(lyr)
             if preview_mode:
@@ -283,13 +369,14 @@ class VectorFileExporter:
                     self._pdf.newPage()
                     new_page_needed = False
                 
-                found_shapes = self.draw_shape(painter, sh, iter.dtrans())
-                found_shapes_on_layer = found_shapes_on_layer or found_shapes
-                
-                if preview_mode and found_shapes:
-                    drawn_shapes += 1
-                    if drawn_shapes >= max_preview_shapes:
-                        return
+                if not sh.is_text() or is_valid_text(lyr, iter, sh):
+                    found_shapes = self.draw_shape(painter, sh, iter.dtrans())
+                    found_shapes_on_layer = found_shapes_on_layer or found_shapes
+                    
+                    if preview_mode and found_shapes:
+                        drawn_shapes += 1
+                        if drawn_shapes >= max_preview_shapes:
+                            return
                 
                 iter.next()
                 

@@ -6,20 +6,23 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>657</width>
-    <height>521</height>
+    <width>687</width>
+    <height>820</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
     <width>600</width>
-    <height>0</height>
+    <height>820</height>
    </size>
   </property>
   <property name="windowTitle">
    <string>Application Settings</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout_7">
+   <property name="spacing">
+    <number>-1</number>
+   </property>
    <item>
     <layout class="QVBoxLayout" name="verticalLayout_6">
      <item>
@@ -243,6 +246,9 @@
         <string>Content Scaling</string>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout_9">
+        <property name="spacing">
+         <number>6</number>
+        </property>
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_17">
           <item>
@@ -303,12 +309,21 @@
            </widget>
           </item>
           <item>
-           <widget class="QLineEdit" name="figure_width_le">
+           <widget class="QDoubleSpinBox" name="figure_width_sb">
             <property name="sizePolicy">
-             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
+            </property>
+            <property name="decimals">
+             <number>3</number>
+            </property>
+            <property name="maximum">
+             <double>999999999.990000009536743</double>
+            </property>
+            <property name="singleStep">
+             <double>0.001000000000000</double>
             </property>
            </widget>
           </item>
@@ -340,12 +355,21 @@
            </widget>
           </item>
           <item>
-           <widget class="QLineEdit" name="figure_height_le">
+           <widget class="QDoubleSpinBox" name="figure_height_sb">
             <property name="sizePolicy">
-             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
+            </property>
+            <property name="decimals">
+             <number>3</number>
+            </property>
+            <property name="maximum">
+             <double>999999999.990000009536743</double>
+            </property>
+            <property name="singleStep">
+             <double>0.001000000000000</double>
             </property>
            </widget>
           </item>
@@ -384,12 +408,15 @@
            </widget>
           </item>
           <item>
-           <widget class="QLineEdit" name="scaling_le">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
+           <widget class="QDoubleSpinBox" name="scaling_sb">
+            <property name="decimals">
+             <number>3</number>
+            </property>
+            <property name="maximum">
+             <double>999999999.990000009536743</double>
+            </property>
+            <property name="singleStep">
+             <double>0.001000000000000</double>
             </property>
            </widget>
           </item>
@@ -411,66 +438,350 @@
        </layout>
       </widget>
      </item>
-     <item>
-      <widget class="QGroupBox" name="groupBox_2">
-       <property name="title">
-        <string>Layer Selection</string>
-       </property>
-       <layout class="QVBoxLayout" name="verticalLayout">
-        <property name="spacing">
-         <number>6</number>
-        </property>
-        <property name="leftMargin">
-         <number>9</number>
-        </property>
-        <property name="topMargin">
-         <number>9</number>
-        </property>
-        <property name="rightMargin">
-         <number>9</number>
-        </property>
-        <property name="bottomMargin">
-         <number>9</number>
-        </property>
+    </layout>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="groupBox_5">
+     <property name="title">
+      <string>Formatting</string>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout_3">
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_11">
         <item>
-         <layout class="QHBoxLayout" name="horizontalLayout">
-          <item>
-           <widget class="QRadioButton" name="all_visible_layers_rb">
-            <property name="text">
-             <string>All visible layers</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
+         <widget class="QLabel" name="label_18">
+          <property name="text">
+           <string>Colors:</string>
+          </property>
+         </widget>
         </item>
         <item>
-         <layout class="QGridLayout" name="gridLayout">
-          <item row="0" column="0">
-           <widget class="QRadioButton" name="custom_layer_selection_rb">
-            <property name="text">
-             <string>Custom selection:</string>
-            </property>
-           </widget>
+         <widget class="QComboBox" name="colors_cob">
+          <item>
+           <property name="text">
+            <string>Black &amp; White</string>
+           </property>
           </item>
-          <item row="0" column="1">
-           <widget class="QLineEdit" name="custom_layers_le"/>
+          <item>
+           <property name="text">
+            <string>Greyscale</string>
+           </property>
           </item>
-          <item row="1" column="1">
-           <widget class="QLabel" name="layers_comment">
-            <property name="text">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;Specify a comma or blank separated list of layers in the usual layer notation, e.g. &quot;1/0 2/0 3/0&quot;, &quot;metal1 via1 metal2&quot; or &quot;metal1 (1/0) via1 (2/0) metal2 (3/0)&quot;&lt;/body&gt;&lt;/html&gt;</string>
-            </property>
-            <property name="wordWrap">
-             <bool>true</bool>
-            </property>
-           </widget>
+          <item>
+           <property name="text">
+            <string>Color</string>
+           </property>
           </item>
-         </layout>
+         </widget>
+        </item>
+        <item>
+         <spacer name="spacer_14">
+          <property name="orientation">
+           <enum>Qt::Orientation::Horizontal</enum>
+          </property>
+          <property name="sizeType">
+           <enum>QSizePolicy::Policy::Fixed</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>13</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="include_bg_color_cb">
+          <property name="text">
+           <string>including background color</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="spacer_15">
+          <property name="orientation">
+           <enum>Qt::Orientation::Horizontal</enum>
+          </property>
+          <property name="sizeType">
+           <enum>QSizePolicy::Policy::MinimumExpanding</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>187</width>
+            <height>13</height>
+           </size>
+          </property>
+         </spacer>
         </item>
        </layout>
-      </widget>
-     </item>
-    </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_7">
+        <item>
+         <widget class="QLabel" name="label_15">
+          <property name="text">
+           <string>Font Family:</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QFontComboBox" name="font_family_cob"/>
+        </item>
+        <item>
+         <spacer name="spacer_5">
+          <property name="orientation">
+           <enum>Qt::Orientation::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>187</width>
+            <height>13</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_8">
+        <property name="spacing">
+         <number>5</number>
+        </property>
+        <item>
+         <widget class="QLabel" name="label_23">
+          <property name="text">
+           <string>Font Size:</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QRadioButton" name="font_size_absolute_rb">
+          <property name="text">
+           <string>Absolute:</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QDoubleSpinBox" name="font_size_pt_sb">
+          <property name="decimals">
+           <number>3</number>
+          </property>
+          <property name="maximum">
+           <double>999999999.990000009536743</double>
+          </property>
+          <property name="singleStep">
+           <double>0.001000000000000</double>
+          </property>
+          <property name="value">
+           <double>8.000000000000000</double>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_4">
+          <property name="text">
+           <string>pt</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="spacer_6">
+          <property name="orientation">
+           <enum>Qt::Orientation::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>78</width>
+            <height>13</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QRadioButton" name="font_size_relative_rb">
+          <property name="text">
+           <string>Relative</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QDoubleSpinBox" name="font_size_relative_sb">
+          <property name="decimals">
+           <number>3</number>
+          </property>
+          <property name="maximum">
+           <double>999999999.990000009536743</double>
+          </property>
+          <property name="singleStep">
+           <double>0.001000000000000</double>
+          </property>
+          <property name="value">
+           <double>1.000000000000000</double>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_5">
+          <property name="text">
+           <string>% of figure width</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="spacer_7">
+          <property name="orientation">
+           <enum>Qt::Orientation::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>18</width>
+            <height>17</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="groupBox_6">
+     <property name="title">
+      <string>Text Selection</string>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout_4">
+      <property name="spacing">
+       <number>6</number>
+      </property>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_9">
+        <item>
+         <widget class="QLabel" name="label_16">
+          <property name="text">
+           <string>Include Texts:</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="texts_cob">
+          <item>
+           <property name="text">
+            <string>None</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>All Visible</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Only Of Top Cell</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+        <item>
+         <spacer name="spacer_8">
+          <property name="orientation">
+           <enum>Qt::Orientation::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>187</width>
+            <height>13</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QGridLayout" name="gridLayout_2">
+        <item row="0" column="0">
+         <widget class="QCheckBox" name="text_layers_filter_enabled_cb">
+          <property name="text">
+           <string>Filter Layers:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLineEdit" name="text_layers_filter_le"/>
+        </item>
+        <item row="1" column="1">
+         <widget class="QLabel" name="layers_comment_2">
+          <property name="text">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;Specify a comma or blank separated list of layers in the usual layer notation, e.g. &quot;1/0 2/0 3/0&quot;, &quot;metal1 via1 metal2&quot; or &quot;metal1 (1/0) via1 (2/0) metal2 (3/0)&quot;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="wordWrap">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="groupBox_2">
+     <property name="title">
+      <string>Layer Selection</string>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout">
+      <property name="spacing">
+       <number>6</number>
+      </property>
+      <property name="leftMargin">
+       <number>9</number>
+      </property>
+      <property name="topMargin">
+       <number>9</number>
+      </property>
+      <property name="rightMargin">
+       <number>9</number>
+      </property>
+      <property name="bottomMargin">
+       <number>9</number>
+      </property>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout">
+        <item>
+         <widget class="QRadioButton" name="all_visible_layers_rb">
+          <property name="text">
+           <string>All visible layers</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QGridLayout" name="gridLayout">
+        <item row="0" column="0">
+         <widget class="QRadioButton" name="custom_layer_selection_rb">
+          <property name="text">
+           <string>Custom selection:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLineEdit" name="custom_layers_le"/>
+        </item>
+        <item row="1" column="1">
+         <widget class="QLabel" name="layers_comment">
+          <property name="text">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;Specify a comma or blank separated list of layers in the usual layer notation, e.g. &quot;1/0 2/0 3/0&quot;, &quot;metal1 via1 metal2&quot; or &quot;metal1 (1/0) via1 (2/0) metal2 (3/0)&quot;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="wordWrap">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
    </item>
   </layout>
  </widget>

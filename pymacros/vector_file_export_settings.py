@@ -62,6 +62,23 @@ class ContentScaling(StrEnum):
     SCALING = 'scaling'
 
 
+class ColorMode(StrEnum):
+    BLACK_AND_WHITE = 'Black & White'
+    GREYSCALE = 'Greyscale'
+    COLOR = 'Color'
+
+
+class FontSizeMode(StrEnum):
+    ABSOLUTE = 'absolute'
+    PERCENT_OF_FIG_WIDTH = 'percent_of_fig_width'
+
+
+class TextMode(StrEnum):
+    NONE = 'none'
+    ALL_VISIBLE = 'all_visible'
+    ONLY_TOP_CELL = 'only_top_cell'
+    
+
 class GeometryReduction(StrEnum):
     NONE = 'none'
     OMIT_SMALL_POLYGONS = 'omit_small_polygons'
@@ -81,10 +98,19 @@ class VectorFileExportSettings:
     page_orientation: PageOrientation = PageOrientation.PORTRAIT
     content_scaling_style: ContentScaling = ContentScaling.FIGURE_WIDTH_MM
     content_scaling_value: float = 120.0
+    color_mode: ColorMode = ColorMode.BLACK_AND_WHITE
+    include_background_color: bool = True
+    font_family: str = 'monospace'
+    font_size_mode: FontSizeMode = FontSizeMode.PERCENT_OF_FIG_WIDTH
+    font_size_pt: float = 6.0
+    font_size_percent_of_fig_width: float = 1.0
+    text_mode: TextMode = TextMode.ALL_VISIBLE
+    text_layers_filter_enabled: bool = False
+    text_layers: str = ''
     geometry_reduction: GeometryReduction = GeometryReduction.OMIT_SMALL_POLYGONS
     layer_output_style: LayerOutputStyle = LayerOutputStyle.SINGLE_PAGE
     layer_selection_mode: LayerSelectionMode = LayerSelectionMode.ALL_VISIBLE_LAYERS
-    custom_layers: str = ""   # only relevant for LayerSelectionMode.CUSTOM_LAYER_LIST
+    custom_layers: str = ''   # only relevant for LayerSelectionMode.CUSTOM_LAYER_LIST
     
     def page_size(self) -> pya.QPageSize:
         return pya.QPageSize(pya.QPageSize.PageSizeId(self.page_format))
@@ -110,6 +136,15 @@ class VectorFileExportSettings:
                 page_orientation=PageOrientation(d['page_orientation']),
                 content_scaling_style=ContentScaling(d['content_scaling_style']),
                 content_scaling_value=float(d['content_scaling_value']),
+                color_mode=ColorMode(d['color_mode']),
+                include_background_color=bool(int(d['include_background_color'])),
+                font_family=d['font_family'],
+                font_size_mode=FontSizeMode(d['font_size_mode']),
+                font_size_pt=float(d['font_size_pt']),
+                font_size_percent_of_fig_width=float(d['font_size_percent_of_fig_width']),
+                text_mode=TextMode(d['text_mode']),
+                text_layers_filter_enabled=bool(int(d['text_layers_filter_enabled'])),
+                text_layers=d['text_layers'],
                 geometry_reduction=GeometryReduction(d['geometry_reduction']),
                 layer_output_style=LayerOutputStyle(d['layer_output_style']),
                 layer_selection_mode=LayerSelectionMode(d['layer_selection_mode']),
@@ -134,6 +169,15 @@ class VectorFileExportSettings:
             'page_orientation': self.page_orientation.value,
             'content_scaling_style': self.content_scaling_style.value,
             'content_scaling_value': str(self.content_scaling_value),
+            'color_mode': self.color_mode.value,
+            'include_background_color': str(int(self.include_background_color)),
+            'font_family': self.font_family,
+            'font_size_mode': self.font_size_mode.value,
+            'font_size_pt': str(self.font_size_pt),
+            'font_size_percent_of_fig_width': str(self.font_size_percent_of_fig_width),
+            'text_mode': self.text_mode.value,
+            'text_layers_filter_enabled': str(int(self.text_layers_filter_enabled)),
+            'text_layers': self.text_layers,
             'geometry_reduction': self.geometry_reduction.value,
             'layer_output_style': self.layer_output_style.value,
             'layer_selection_mode': self.layer_selection_mode.value,

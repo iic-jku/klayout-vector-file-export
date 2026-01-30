@@ -40,20 +40,11 @@ class DesignInfo:
     dbu: float
     layer_indexes: List[int]
     settings: VectorFileExportSettings
-
+    
     @classmethod
     def for_layout_view(cls, 
                         layout_view: pya.LayoutView,
                         settings: VectorFileExportSettings):
-        def visible_layer_indexes() -> List[int]:
-            idxs = []
-            for lref in layout_view.each_layer():
-                if lref.visible and lref.valid:
-                    if lref.layer_index() == -1:  # hidden by the user
-                        continue
-                    idxs.append(lref.layer_index())
-            return idxs
-
         cellview = layout_view.active_cellview()
         cell = cellview.cell             
         layout = cell.layout()
@@ -61,7 +52,7 @@ class DesignInfo:
         layer_indexes: List[int]
         match settings.layer_selection_mode:
             case LayerSelectionMode.ALL_VISIBLE_LAYERS:
-                layer_indexes = visible_layer_indexes()
+                layer_indexes = cls.visible_layer_indexes(layout_view)
             case LayerSelectionMode.CUSTOM_LAYER_LIST:
                 layer_list_parse_result = LayerList.parse_layer_list_string(settings.custom_layers)
                 if len(layer_list_parse_result.errors) == 0:
@@ -80,6 +71,34 @@ class DesignInfo:
             layer_indexes=layer_indexes,
             settings=settings
         )
+
+    @staticmethod
+    def visible_layer_indexes(layout_view: pya.LayoutView) -> List[int]:
+        idxs = []
+        for lref in layout_view.each_layer():
+            if lref.visible and lref.valid:
+                if lref.layer_index() == -1:  # hidden by the user
+                    continue
+                idxs.append(lref.layer_index())
+        return idxs
+
+    @cached_property
+    def text_filter_layers_indexes(self) -> List[int]:
+        layer_indexes: List[int]
+        
+        cellview = self.layout_view.active_cellview()
+        cell = cellview.cell             
+        layout = cell.layout()
+        
+        layer_list_parse_result = LayerList.parse_layer_list_string(self.settings.text_layers)
+        if len(layer_list_parse_result.errors) == 0:
+            layer_indexes = [layout.find_layer(l) for l in layer_list_parse_result.result.layers]            
+        else: 
+            print(f"ERROR: failed to parse layer list {self.settings.text_layers} due to errors: {layer_list_parse_result.errors}")
+            layer_indexes = []
+        return layer_indexes
+        
+    # --------------------------------------------------------
 
     @property
     def width_um(self) -> float:
