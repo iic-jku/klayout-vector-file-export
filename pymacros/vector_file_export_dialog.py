@@ -159,7 +159,8 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
                                  f"Failed to export layout in vector format",
                                  f"Caught exception: <pre>{e}</pre>")
         finally:
-            self.progress_dialog.close()
+            if self.progress_dialog is not None:
+                self.progress_dialog.close()
             self.exportButton.setEnabled(False)        
 
     def on_cancel(self):
