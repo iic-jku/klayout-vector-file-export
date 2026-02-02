@@ -158,9 +158,13 @@ class VectorFileExporter:
         #       f"({page_size_pt.width} x {page_size_pt.height} pt)")
                 
         match self.settings.file_format:
-            case VectorFileFormat.SVG:  # scale only, do not flip Y
-                painter.translate(-self.design_info.bbox.left, -self.design_info.bbox.bottom)
-                painter.scale(self.design_info.scale_um_to_pt, self.design_info.scale_um_to_pt)
+            case VectorFileFormat.SVG:
+                # Scale layout units → points, flip Y
+                painter.scale(self.design_info.scale_um_to_pt, -self.design_info.scale_um_to_pt)
+                 
+                # Move bbox origin to (0,0)
+                painter.translate(-self.design_info.bbox.left,
+                                  -self.design_info.bbox.height())
             case VectorFileFormat.PDF:  # scale and flip Y
                 # center on page
                 painter.translate(offset_x, offset_y + self.design_info.fig_height_pt)
