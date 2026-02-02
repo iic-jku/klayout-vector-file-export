@@ -78,11 +78,8 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
             self.page.page_format_cob.addItem(format_title, page_id)
         
         self.page.file_format_cob.currentIndexChanged.connect(self.on_file_format_changed)
-
         self.page.colors_cob.currentIndexChanged.connect(self.on_color_changed)
-
         self.page.browse_save_path_pb.clicked.connect(self.on_browse_save_path)
-
         self.page.figure_width_sb.valueChanged.connect(self.on_figure_width_changed)
         self.page.figure_height_sb.valueChanged.connect(self.on_figure_height_changed)
         self.page.scaling_sb.valueChanged.connect(self.on_scaling_value_changed)
@@ -214,6 +211,8 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
             font_size_mode = FontSizeMode.ABSOLUTE
         elif self.page.font_size_relative_rb.checked:
             font_size_mode = FontSizeMode.PERCENT_OF_FIG_WIDTH
+        else:
+            font_size_mode = FontSizeMode.PERCENT_OF_FIG_WIDTH
         
         font_size_pt = self.page.font_size_pt_sb.value
         font_size_percent_of_fig_width = self.page.font_size_relative_sb.value
@@ -266,6 +265,24 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
     def update_ui_from_settings(self, settings: VectorFileExportSettings):
         if Debugging.DEBUG:
             debug("VectorFileExportDialog.update_ui_from_settings")
+            
+        def block_signals(blocked: bool):
+            self.page.file_format_cob.blockSignals(blocked)
+            self.page.browse_save_path_pb.blockSignals(blocked)
+            self.page.colors_cob.blockSignals(blocked)
+            self.page.figure_width_sb.blockSignals(blocked)
+            self.page.figure_height_sb.blockSignals(blocked)
+            self.page.scaling_sb.blockSignals(blocked)
+            self.page.custom_layers_le.blockSignals(blocked)
+            
+        block_signals(True)
+        self._update_ui_from_settings(settings)
+        block_signals(False)
+    
+    # NOTE: this method is guarded (all signals should be blocked)
+    def _update_ui_from_settings(self, settings: VectorFileExportSettings):
+        if Debugging.DEBUG:
+            debug("VectorFileExportDialog._update_ui_from_settings")
         
         format_choice = ''
         match (settings.file_format, settings.layer_output_style):
@@ -310,18 +327,10 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
             case _:
                 raise NotImplementedError(f"Unhandled enum case {settings.content_scaling_style}")
         
-        self.page.figure_width_sb.blockSignals(True)
-        self.page.figure_height_sb.blockSignals(True)
-        self.page.scaling_sb.blockSignals(True)
-
         self.page.figure_width_sb.setValue(design_info.fig_width_mm)
         self.page.figure_height_sb.setValue(design_info.fig_height_mm)
         self.page.scaling_sb.setValue(design_info.scaling)
 
-        self.page.figure_width_sb.blockSignals(False)
-        self.page.figure_height_sb.blockSignals(False)
-        self.page.scaling_sb.blockSignals(False)
-        
         self.page.colors_cob.setCurrentText(settings.color_mode.value)
         self.page.include_bg_color_cb.setChecked(settings.include_background_color)
     
