@@ -168,11 +168,13 @@ class VectorFileExporter:
         dbu = self.design_info.dbu
         font_metrics = pya.QFontMetrics(painter.font)
         def draw_text(shape: pya.Shape):
-            text = shape.text
-            full_trans = trans * shape.text_trans
-            # full_trans = shape.text_trans
+            # NOTE: trans is in µm units
+            #       shape.text gives integer-unit object
+            #       shape.dtext gives µm-unit object
+            text = shape.dtext
+            full_trans = trans * text.trans
             disp = full_trans.disp
-            world_pos_um = pya.QPointF(disp.x * dbu, - disp.y * dbu)
+            world_pos_um = pya.QPointF(disp.x, - disp.y)
             
             t = painter.worldTransform
             
@@ -332,8 +334,8 @@ class VectorFileExporter:
                 
                 lp = layer_properties_by_layer_index[lyr]
                 frame_color = pya.QColor(lp.eff_frame_color())
-                print(f"layer_index={lyr} {lp.name}: eff_frame_color={lp.eff_frame_color()} {frame_color.name()}")
-
+                
+                # print(f"layer_index={lyr} {lp.name}: eff_frame_color={lp.eff_frame_color()} {frame_color.name()}")
                 # frame_color = pya.QColor(lp.eff_fill_color())
                 # fill_color = pya.QColor(lp.eff_fill_color())
                 
