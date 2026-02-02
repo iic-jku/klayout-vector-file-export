@@ -99,11 +99,20 @@ class VectorFileExporter:
         
         return painter
 
+    def pen(self, color: pya.QColor, width_f: float) -> pya.QPen:
+        pen = pya.QPen(color)
+        pen.setWidthF(width_f)
+        pen.setCosmetic(True)
+        return pen        
+
+    @property
+    def pen_width(self) -> float:
+        return max(self.design_info.dbu, self.design_info.um_per_pixel * 0.4)        
+
     def prepare_painter(self, painter: pya.QPainter):
         dbu = self.design_info.dbu
     
-        pen = pya.QPen(pya.QColor('black'))
-        pen.setWidthF(dbu)
+        pen = self.pen(color=pya.QColor('black'), width_f=self.pen_width)
         painter.setPen(pen)
 
         # brush = pya.QBrush(pya.QColor(200, 200, 200))
@@ -349,12 +358,10 @@ class VectorFileExporter:
                         gray_value = int(0.299 * frame_color.red +\
                                          0.587 * frame_color.green +\
                                          0.114 * frame_color.blue)
-                        pen = pya.QPen(pya.QColor(gray_value, gray_value, gray_value))
-                        pen.setWidthF(width_f)
+                        pen = self.pen(color=pya.QColor(gray_value, gray_value, gray_value), width_f=width_f)
                         painter.setPen(pen)
                     case ColorMode.COLOR:
-                        pen = pya.QPen(frame_color)
-                        pen.setWidthF(width_f)
+                        pen = self.pen(color=pya.QColor(frame_color), width_f=width_f)
                         painter.setPen(pen)
             
             iter = top_cell.begin_shapes_rec(lyr)
@@ -411,8 +418,7 @@ class VectorFileExporter:
         painter.setRenderHint(pya.QPainter.Antialiasing)
         
         # Pen width in layout units (µm)
-        pen = pya.QPen(pya.QColor('black'))
-        pen.setWidthF(max(self.design_info.dbu, self.design_info.um_per_pixel))
+        pen = self.pen(color=pya.QColor('black'), width_f=self.pen_width)
         painter.setPen(pen)
         
         # Layout → page scaling (points) and centering
@@ -441,8 +447,7 @@ class VectorFileExporter:
         painter = self.create_painter()
         self.prepare_painter(painter)
         try:
-            pen = pya.QPen(pya.QColor('black'))
-            pen.setWidthF(self.design_info.dbu)
+            pen = self.pen(color=pya.QColor('black'), width_f=self.pen_width)
             painter.setPen(pen)
         
             self.paint_layers(painter=painter, preview_mode=False)
