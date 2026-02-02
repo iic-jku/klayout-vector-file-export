@@ -92,9 +92,14 @@ class VectorFileExportPluginFactory(pya.PluginFactory):
             return
         
         result = self.dialog.exec_()
+        
         if result == 1:
-            settings = self.dialog.settings_from_ui()
-            FileSystemHelpers.reveal_in_file_manager(settings.output_path)
+            try:
+                settings = self.dialog.settings_from_ui()
+                FileSystemHelpers.reveal_in_file_manager(settings.output_path)
+            except Exception as e:
+                print(f"ERROR: VectorFileExportPluginFactory.open_vector_file_export_dialog: Caught unhandled exception {e}")
+        
 
     def reset_menu(self):
         if Debugging.DEBUG:
