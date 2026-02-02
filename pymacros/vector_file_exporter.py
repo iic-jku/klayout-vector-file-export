@@ -269,7 +269,7 @@ class VectorFileExporter:
                 layout = device.pageLayout()
                 paint_rect = layout.paintRect(pya.QPageLayout.Point)
             case VectorFileFormat.SVG:
-                paint_rect = painter.viewport()  # svg generator viewport
+                paint_rect = painter.viewport  # svg generator viewport
             case _:
                 painter.restore()
                 return
