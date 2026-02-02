@@ -199,7 +199,7 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
             content_scaling_value = self.page.figure_width_sb.value
         else:
             content_scaling_style = ContentScaling.SCALING
-            content_scaling_value = self.page.scaling_sb.text.value
+            content_scaling_value = self.page.scaling_sb.value
 
         chosen_color_mode = self.page.colors_cob.currentText
         color_mode: ColorMode = ColorMode(chosen_color_mode)
