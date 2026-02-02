@@ -70,6 +70,7 @@ class VectorFileExporter:
                         dev.setPageOrientation(pya.QPageLayout.Landscape)
                     case _:
                         raise NotImplementedError()
+                dev.setPageMargins(pya.QMarginsF(0,0,0,0))
                 painter = pya.QPainter(dev)
                 self._pdf = pdf
             
@@ -262,12 +263,13 @@ class VectorFileExporter:
             
         match self.settings.file_format:
             case VectorFileFormat.PDF:
-                page_size_pt = self.settings.page_size().sizePoints()
-                rect = pya.QRectF(0, 0, page_size_pt.width, page_size_pt.height)
-    
+                # NOTE: we can't use the page_size alone,
+                #       because there are printer margins that Qt implicitly considers
+                device = painter.device()
+                layout = device.pageLayout()
+                paint_rect = layout.paintRect(pya.QPageLayout.Point)
             case VectorFileFormat.SVG:
-                rect = painter.viewport()  # svg generator viewport
-    
+                paint_rect = painter.viewport()  # svg generator viewport
             case _:
                 painter.restore()
                 return
@@ -277,7 +279,7 @@ class VectorFileExporter:
         
         painter.setPen(pya.QPen())
         painter.setBrush(pya.QBrush(background_color))
-        painter.drawRect(rect)
+        painter.drawRect(paint_rect)
         
         painter.restore()
     
