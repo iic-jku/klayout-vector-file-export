@@ -203,6 +203,7 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         color_mode: ColorMode = ColorMode(chosen_color_mode)
                 
         include_background_color = self.page.include_bg_color_cb.checked
+        include_stipples = self.page.include_stipples_cb.checked
         
         font_family = self.page.font_family_cob.currentText
         
@@ -250,6 +251,7 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
             content_scaling_value=content_scaling_value,
             color_mode=color_mode,
             include_background_color=include_background_color,
+            include_stipples=include_stipples,
             font_family=font_family,
             font_size_mode=font_size_mode,
             font_size_pt=font_size_pt,
@@ -330,10 +332,11 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         self.page.figure_width_sb.setValue(design_info.fig_width_mm)
         self.page.figure_height_sb.setValue(design_info.fig_height_mm)
         self.page.scaling_sb.setValue(design_info.scaling)
-
+        
         self.page.colors_cob.setCurrentText(settings.color_mode.value)
         self.page.include_bg_color_cb.setChecked(settings.include_background_color)
-    
+        self.page.include_stipples_cb.setChecked(settings.include_stipples)
+        
         self.page.font_family_cob.setCurrentText(settings.font_family)
 
         match settings.font_size_mode:
