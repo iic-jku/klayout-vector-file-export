@@ -25,6 +25,8 @@ import unittest
 
 import pya
 
+from klayout_plugin_utils.base36 import *
+
 
 @dataclass(slots=True)
 class Bitmap:
@@ -157,6 +159,28 @@ class Bitmap:
                     f.write(bytes([byte]))
 
     # ----------------------------------------
+    # Convert to/from compact filename
+    # ----------------------------------------
+    
+    @classmethod
+    def from_compact_filename(cls, s: str) -> Bitmap:
+        try:
+            w_str, h_str, data_str = s.split('_', 2)
+            width = base36_to_int(w_str)
+            height = base36_to_int(h_str)
+            data = bytearray(base36_to_bytes(data_str))
+            return cls(width, height, data)
+        except Exception as e:
+            raise ValueError(f"Invalid compact filename: {s}") from e
+
+    def to_compact_filename(self) -> str:
+        """Compact, reversible filename-safe string using only [0-9a-z]."""
+        w_str = int_to_base36(self.width)
+        h_str = int_to_base36(self.height)
+        data_str = bytes_to_base36(self.data)
+        return f"{w_str}_{h_str}_{data_str}"
+
+    # ----------------------------------------
     # bitmap data accessors
     # ----------------------------------------
     
@@ -217,14 +241,52 @@ class BitmapTests(unittest.TestCase):
             path = tmp.name
 
         try:
-            pbm = original.to_pbm(path)
-            
+            original.to_pbm(path)
             loaded = Bitmap.from_pbm(path)
             
+            self.assertEqual(original.width, loaded.width)
+            self.assertEqual(original.height, loaded.height)
+            self.assertEqual(original.data, loaded.data)
             self.assertEqual('.*..\n*.**\n..*.', loaded.to_klayout_string())            
         finally:
-            # os.remove(path)
-            print(f"pbm path is {path}")
+            os.remove(path)
+        
+    # ----------------------------------------
+    # Compact filename tests
+    # ----------------------------------------
+    
+    def test_compact_filename_round_trip(self):
+        s = """
+            .*..
+            *.**
+            ..*.
+            """
+        b = Bitmap.from_klayout_string(s)
+        name = b.to_compact_filename()
+        b2 = Bitmap.from_compact_filename(name)
+        
+        self.assertEqual(b.width, b2.width)
+        self.assertEqual(b.height, b2.height)
+        self.assertEqual(b.data, b2.data)
+        self.assertEqual(b.to_klayout_string(), b2.to_klayout_string())
+
+    def test_compact_filename_empty_bitmap(self):
+        b = Bitmap(0, 0, bytearray())
+        name = b.to_compact_filename()
+        b2 = Bitmap.from_compact_filename(name)
+        self.assertEqual(b.width, b2.width)
+        self.assertEqual(b.height, b2.height)
+        self.assertEqual(b.data, b2.data)
+
+    def test_compact_filename_large_bitmap(self):
+        # 16x16 checkerboard
+        data = bytearray((i + j) % 2 for j in range(16) for i in range(16))
+        b = Bitmap(16, 16, data)
+        name = b.to_compact_filename()
+        b2 = Bitmap.from_compact_filename(name)
+        self.assertEqual(b.data, b2.data)
+        self.assertEqual(b.width, b2.width)
+        self.assertEqual(b.height, b2.height)
         
 
 if __name__ == "__main__":
