@@ -447,7 +447,7 @@
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_3">
       <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_11">
+       <layout class="QHBoxLayout" name="horizontalLayout_10">
         <item>
          <widget class="QLabel" name="label_18">
           <property name="text">
@@ -484,7 +484,7 @@
           </property>
           <property name="sizeHint" stdset="0">
            <size>
-            <width>20</width>
+            <width>10</width>
             <height>13</height>
            </size>
           </property>
@@ -493,7 +493,7 @@
         <item>
          <widget class="QCheckBox" name="include_bg_color_cb">
           <property name="text">
-           <string>including background color</string>
+           <string>include background color</string>
           </property>
          </widget>
         </item>
@@ -503,11 +503,34 @@
            <enum>Qt::Orientation::Horizontal</enum>
           </property>
           <property name="sizeType">
+           <enum>QSizePolicy::Policy::Fixed</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>10</width>
+            <height>13</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="include_stipples_cb">
+          <property name="text">
+           <string>include stipples</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="spacer_16">
+          <property name="orientation">
+           <enum>Qt::Orientation::Horizontal</enum>
+          </property>
+          <property name="sizeType">
            <enum>QSizePolicy::Policy::MinimumExpanding</enum>
           </property>
           <property name="sizeHint" stdset="0">
            <size>
-            <width>187</width>
+            <width>58</width>
             <height>13</height>
            </size>
           </property>
