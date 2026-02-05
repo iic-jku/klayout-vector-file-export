@@ -27,14 +27,11 @@ from typing import *
 
 from klayout_plugin_utils.debugging import debug, Debugging
 
-from design_info import DesignInfo
+from design_info import DesignInfo, MM_PER_PT
+from exception import ExportCancelledError
 from progress_reporter import ProgressReporter
+from stipple_cache import *
 from vector_file_export_settings import *
-
-
-class ExportCancelledError(BaseException):
-    """Raised when an export operation is cancelled by the user."""
-    pass
 
 
 class VectorFileExporter:
@@ -45,7 +42,6 @@ class VectorFileExporter:
         self.layout_view = layout_view
         self.settings = settings
         self.progress_reporter = progress_reporter
-        
         self.design_info = DesignInfo.for_layout_view(layout_view, settings)
         
     def create_painter(self) -> pya.QPainter:
@@ -175,10 +171,61 @@ class VectorFileExporter:
                 # optional: move origin again if needed
                 painter.translate(-self.design_info.bbox.left, -self.design_info.bbox.bottom)
 
+    def draw_stipple(self,
+                     painter: pya.QPainter,
+                     shape_path: pya.QPainterPath,
+                     stipple_panel: Optional[StipplePanel]):            
+        if Debugging.DEBUG:
+            debug(f"VectorFileExporter.draw_stipple: enter")
+
+        # get shape bounding rect
+        bbox = shape_path.boundingRect()
+        
+        painter.save()
+
+        world_trans = painter.worldTransform
+        if not world_trans.isInvertible():
+            print(f"ERROR: Failed to invert world transformation")
+            return
+        inv_world_trans = world_trans.inverted()
+        
+        painter.setWorldTransform(pya.QTransform())
+        
+        painter.setBrush(pya.QBrush(painter.pen().color))
+        
+        clip_path_device = world_trans.map(shape_path)
+        
+        fill_rect = clip_path_device.boundingRect()
+        
+        painter.setClipPath(clip_path_device)
+
+        STIPPLE_SCALE = 0.2  # 0.3
+
+        # NOTE: hot-spot, no logging
+        # if Debugging.DEBUG:
+        #     debug(f"draw_polygon: panel=({stipple_panel.width}, {stipple_panel.height})"
+        
+        margin_x = stipple_panel.stipple.width
+        margin_y = stipple_panel.stipple.height * 3
+        x = fill_rect.left - margin_x
+        y = fill_rect.top - margin_y
+        painter.save()
+        painter.translate(pya.QPointF(x, y))
+        painter.scale(STIPPLE_SCALE, STIPPLE_SCALE)
+        for path in stipple_panel.painter_paths:
+            painter.drawPath(path)
+        painter.restore()
+        
+        painter.restore()
+
+        if Debugging.DEBUG:
+            debug(f"VectorFileExporter.draw_stipple: exit")
+
     def draw_shape(self,
                    painter: pya.QPainter,
                    shape: pya.Shape,
-                   trans: pya.DTrans) -> bool:
+                   trans: pya.DTrans,
+                   stipple_panel: Optional[StipplePanel]) -> bool:
         dbu = self.design_info.dbu
         font_metrics = pya.QFontMetrics(painter.font)
         def draw_text(shape: pya.Shape):
@@ -231,16 +278,31 @@ class VectorFileExporter:
             painter.restore()
         
         def draw_polygon(p: pya.DPolygon):
-            p = shape.dpolygon.transformed(trans)
-            path = pya.QPainterPath()
+            #
+            # draw main polygon
+            #
+            p = p.transformed(trans)
+            poly_path = pya.QPainterPath()
             pts = p.each_point_hull()
             
             first = next(pts)
-            path.moveTo(pya.QPointF(first.x, first.y))
-            for p in pts:
-                path.lineTo(pya.QPointF(p.x, p.y))
-            path.closeSubpath()
-            painter.drawPath(path)
+            poly_path.moveTo(pya.QPointF(first.x, first.y))
+            for pt in pts:
+                poly_path.lineTo(pya.QPointF(pt.x, pt.y))
+            poly_path.closeSubpath()
+            
+            painter.drawPath(poly_path)
+            
+            #
+            # draw the stipple "fill"
+            # 
+            if stipple_panel is None:
+                # NOTE: hot-spot, no logging
+                # if Debugging.DEBUG:
+                #     debug(f"draw_polygon: stipple is None")
+                return
+            
+            self.draw_stipple(painter, poly_path, stipple_panel)
         
         if shape.is_box()\
            or shape.is_polygon()\
@@ -257,9 +319,12 @@ class VectorFileExporter:
                 pass
         
         if shape.is_box():
-            b = shape.dbox.transformed(trans)
-            rect = pya.QRectF(b.left, b.bottom, b.width(), b.height())
-            painter.drawRect(rect)
+            draw_polygon(shape.dpolygon)
+            
+            # TODO: perhaps speed up things by using boxes instead of polygons
+            # b = shape.dbox.transformed(trans)
+            # rect = pya.QRectF(b.left, b.bottom, b.width(), b.height())
+            # painter.drawRect(rect)
         elif shape.is_polygon():
             draw_polygon(shape.dpolygon)
         elif shape.is_path():
@@ -343,11 +408,12 @@ class VectorFileExporter:
         drawn_shapes = 0
         for lyr in self.design_info.layer_indexes:
             found_shapes_on_layer = False
+
+            lp = layer_properties_by_layer_index[lyr]
             
             if self.settings.color_mode != ColorMode.BLACK_AND_WHITE:
                 width_f = painter.pen().widthF
                 
-                lp = layer_properties_by_layer_index[lyr]
                 frame_color = pya.QColor(lp.eff_frame_color())
                 
                 # print(f"layer_index={lyr} {lp.name}: eff_frame_color={lp.eff_frame_color()} {frame_color.name()}")
@@ -368,6 +434,22 @@ class VectorFileExporter:
                         pen = self.pen(color=pya.QColor(frame_color), width_f=width_f)
                         painter.setPen(pen)
             
+            stipple_panel: Optional[StipplePanel] = None
+            if self.settings.include_stipples:
+                stipple_index = lp.eff_dither_pattern()
+                stipple_str = self.design_info.layout_view.get_stipple(stipple_index)
+                stipple = Stipple.from_klayout_string(stipple_str)
+            
+                min_w = int((bbox.width() * self.design_info.scale_um_to_pt + stipple.width*4) * 1.5)
+                min_h = int((bbox.height() * self.design_info.scale_um_to_pt + stipple.height*4) * 1.5)
+                if Debugging.DEBUG:
+                    debug(f"VectorFileExporter.paint_layers: "
+                          f"bbox={bbox.width():.3g} x {bbox.height():.3g} µm, "
+                          f"stipple={stipple.width} x {stipple.height} px, "
+                          f"panel={min_w:.3g} x {min_h:.3g} px")
+                
+                stipple_panel = StippleCache.instance().panelize(stipple, min_w, min_h, self.progress_reporter)
+            
             iter = top_cell.begin_shapes_rec(lyr)
             if preview_mode:
                 iter.min_depth = 0
@@ -379,13 +461,22 @@ class VectorFileExporter:
             while not iter.at_end():
                 sh = iter.shape()
                 ### print(f"lyr {lyr}, sh = {sh}")
-
+                
                 if new_page_needed:
                     self._pdf.newPage()
                     new_page_needed = False
+                    
+                    if self.settings.include_background_color:
+                        match self.settings.color_mode:
+                            case ColorMode.BLACK_AND_WHITE:
+                                pass  # no background color in this mode (avoid black on black)
+                            case ColorMode.GREYSCALE:
+                                pass  # no background color in this mode (avoid constrast issues)
+                            case ColorMode.COLOR:
+                                self.draw_background(painter)
                 
                 if not sh.is_text() or is_valid_text(lyr, iter, sh):
-                    found_shapes = self.draw_shape(painter, sh, iter.dtrans())
+                    found_shapes = self.draw_shape(painter, sh, iter.dtrans(), stipple_panel)
                     found_shapes_on_layer = found_shapes_on_layer or found_shapes
                     
                     if preview_mode and found_shapes:
@@ -443,6 +534,8 @@ class VectorFileExporter:
             if Debugging.DEBUG:
                 debug(f"VectorFileExporter.render_preview caught exception {e}")
             raise
+        except ExportCancelledError as e:
+            pass
         finally:
             painter.end()
         return image
@@ -455,7 +548,10 @@ class VectorFileExporter:
             painter.setPen(pen)
         
             self.paint_layers(painter=painter, preview_mode=False)
+        except Exception as e:
+            if Debugging.DEBUG:
+                debug(f"VectorFileExporter.export caught exception {e}")
         except ExportCancelledError as e:
-            raise
+            pass
         finally:
             painter.end()    
