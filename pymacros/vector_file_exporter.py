@@ -29,6 +29,7 @@ from klayout_plugin_utils.debugging import debug, Debugging
 
 from design_info import DesignInfo
 from progress_reporter import ProgressReporter
+from stipple_cache import *
 from vector_file_export_settings import *
 
 
@@ -178,7 +179,8 @@ class VectorFileExporter:
     def draw_shape(self,
                    painter: pya.QPainter,
                    shape: pya.Shape,
-                   trans: pya.DTrans) -> bool:
+                   trans: pya.DTrans,
+                   stipple: Optional[Stipple]) -> bool:
         dbu = self.design_info.dbu
         font_metrics = pya.QFontMetrics(painter.font)
         def draw_text(shape: pya.Shape):
@@ -231,16 +233,70 @@ class VectorFileExporter:
             painter.restore()
         
         def draw_polygon(p: pya.DPolygon):
-            p = shape.dpolygon.transformed(trans)
-            path = pya.QPainterPath()
+            #
+            # draw main polygon
+            #
+            p = p.transformed(trans)
+            poly_path = pya.QPainterPath()
             pts = p.each_point_hull()
             
             first = next(pts)
-            path.moveTo(pya.QPointF(first.x, first.y))
-            for p in pts:
-                path.lineTo(pya.QPointF(p.x, p.y))
-            path.closeSubpath()
-            painter.drawPath(path)
+            poly_path.moveTo(pya.QPointF(first.x, first.y))
+            for pt in pts:
+                poly_path.lineTo(pya.QPointF(pt.x, pt.y))
+            poly_path.closeSubpath()
+            
+            painter.drawPath(poly_path)
+            
+            #
+            # draw the stipple "fill"
+            # 
+            if stipple is None:
+                # NOTE: hot-spot, no logging
+                # if Debugging.DEBUG:
+                #     debug(f"draw_polygon: stipple is None")
+                return
+            
+            painter.save()
+            painter.setClipPath(poly_path)
+            
+            # get polygon bounding rect
+            fill_rect = poly_path.boundingRect()
+            
+            spacing_x = float(stipple.bitmap.width) / self.design_info.scale_um_to_pt
+            spacing_y = float(stipple.bitmap.height) / self.design_info.scale_um_to_pt
+
+            # NOTE: hot-spot, no logging
+            # if Debugging.DEBUG:
+            #     debug(f"draw_polygon: tile_rect=({stipple.bitmap.width}, {stipple.bitmap.height}), "
+            #           f"spacing=({spacing_x}, {spacing_y}), \n"
+            #           f"stipple=\n{stipple.stipple_string}")
+
+            if spacing_x <= 0 or spacing_y <= 0:  # avoid endless loops
+                painter.restore()
+                return
+
+            if fill_rect.width < spacing_x or fill_rect.height < spacing_y:
+                painter.restore()
+                return
+            
+            x = fill_rect.left - spacing_x
+            while x < fill_rect.right + spacing_x:
+                if self.progress_reporter is not None:
+                    if self.progress_reporter.was_canceled():
+                        raise ExportCancelledError()
+                
+                y = fill_rect.top - spacing_y
+                while y < fill_rect.bottom + spacing_y:
+                    painter.save()
+                    painter.translate(pya.QPointF(x, y))
+                    for tile_path in stipple.painter_paths:
+                        painter.drawPath(tile_path)
+                    painter.restore()
+                    y += spacing_y
+                x += spacing_x
+            
+            painter.restore()
         
         if shape.is_box()\
            or shape.is_polygon()\
@@ -257,9 +313,12 @@ class VectorFileExporter:
                 pass
         
         if shape.is_box():
-            b = shape.dbox.transformed(trans)
-            rect = pya.QRectF(b.left, b.bottom, b.width(), b.height())
-            painter.drawRect(rect)
+            draw_polygon(shape.dpolygon)
+            
+            # TODO: perhaps speed up things by using boxes instead of polygons
+            # b = shape.dbox.transformed(trans)
+            # rect = pya.QRectF(b.left, b.bottom, b.width(), b.height())
+            # painter.drawRect(rect)
         elif shape.is_polygon():
             draw_polygon(shape.dpolygon)
         elif shape.is_path():
@@ -343,11 +402,12 @@ class VectorFileExporter:
         drawn_shapes = 0
         for lyr in self.design_info.layer_indexes:
             found_shapes_on_layer = False
+
+            lp = layer_properties_by_layer_index[lyr]
             
             if self.settings.color_mode != ColorMode.BLACK_AND_WHITE:
                 width_f = painter.pen().widthF
                 
-                lp = layer_properties_by_layer_index[lyr]
                 frame_color = pya.QColor(lp.eff_frame_color())
                 
                 # print(f"layer_index={lyr} {lp.name}: eff_frame_color={lp.eff_frame_color()} {frame_color.name()}")
@@ -368,6 +428,12 @@ class VectorFileExporter:
                         pen = self.pen(color=pya.QColor(frame_color), width_f=width_f)
                         painter.setPen(pen)
             
+            stipple: Optional[Stipple] = None
+            if self.settings.include_stipples:
+                stipple_index = lp.eff_dither_pattern()
+                stipple_str = self.design_info.layout_view.get_stipple(stipple_index)
+                stipple = StippleCache.instance().stipple_for_string(stipple_str)
+            
             iter = top_cell.begin_shapes_rec(lyr)
             if preview_mode:
                 iter.min_depth = 0
@@ -385,7 +451,7 @@ class VectorFileExporter:
                     new_page_needed = False
                 
                 if not sh.is_text() or is_valid_text(lyr, iter, sh):
-                    found_shapes = self.draw_shape(painter, sh, iter.dtrans())
+                    found_shapes = self.draw_shape(painter, sh, iter.dtrans(), stipple)
                     found_shapes_on_layer = found_shapes_on_layer or found_shapes
                     
                     if preview_mode and found_shapes:
