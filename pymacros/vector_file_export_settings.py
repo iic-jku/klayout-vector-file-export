@@ -212,7 +212,7 @@ class VectorFileExportSettings:
             if custom_layers_str is not None:
                 settings.custom_layers = custom_layers_str
 
-            return settings
+        return settings
                 
     def save(self):
         if Debugging.DEBUG:

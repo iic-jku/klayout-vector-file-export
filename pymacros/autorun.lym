@@ -62,7 +62,7 @@ import progress_reporter
 import design_info
 import bitmap
 import bitmap_vectorizer
-import stipple_vector_cache
+import stipple_cache
 reload(klayout_plugin_utils.debugging)
 reload(klayout_plugin_utils.editor_options)
 reload(klayout_plugin_utils.event_loop)
@@ -77,7 +77,7 @@ reload(progress_reporter)
 reload(design_info)
 reload(bitmap)
 reload(bitmap_vectorizer)
-reload(stipple_vector_cache)
+reload(stipple_cache)
 
 import klayout_plugin_utils.debugging
 klayout_plugin_utils.debugging.Debugging.init_debugging()
