@@ -162,13 +162,36 @@ class Bitmap:
     # Convert to/from compact filename
     # ----------------------------------------
     
+    @staticmethod
+    def bits_to_bytes(bits: bytearray) -> bytearray:
+        """Convert 1-bit-per-byte array into actual bytes (8 bits per byte)."""
+        n = len(bits)
+        out = bytearray((n + 7) // 8)
+        for i, bit in enumerate(bits):
+            if bit:
+                byte_index = i // 8
+                bit_index = 7 - (i % 8)  # store most significant bit first
+                out[byte_index] |= 1 << bit_index
+        return out
+
+    @staticmethod      
+    def bytes_to_bits(data: bytes, n_bits: int) -> bytearray:
+        out = bytearray(n_bits)
+        for i in range(n_bits):
+            byte_index = i // 8
+            bit_index = 7 - (i % 8)
+            out[i] = (data[byte_index] >> bit_index) & 1
+        return out
+    
     @classmethod
     def from_compact_filename(cls, s: str) -> Bitmap:
         try:
             w_str, h_str, data_str = s.split('_', 2)
             width = base36_to_int(w_str)
             height = base36_to_int(h_str)
-            data = bytearray(base36_to_bytes(data_str))
+            n_bits = width * height
+            packed = base36_to_bytes(data_str)
+            data = self.bytes_to_bits(packed, n_bits)
             return cls(width, height, data)
         except Exception as e:
             raise ValueError(f"Invalid compact filename: {s}") from e
@@ -177,7 +200,8 @@ class Bitmap:
         """Compact, reversible filename-safe string using only [0-9a-z]."""
         w_str = int_to_base36(self.width)
         h_str = int_to_base36(self.height)
-        data_str = bytes_to_base36(self.data)
+        packed = self.bits_to_bytes(self.data)
+        data_str = bytes_to_base36(packed)
         return f"{w_str}_{h_str}_{data_str}"
 
     # ----------------------------------------
@@ -288,6 +312,26 @@ class BitmapTests(unittest.TestCase):
         self.assertEqual(b.width, b2.width)
         self.assertEqual(b.height, b2.height)
         
+    def test_compact_filename__concrete_example(self):
+        s = """
+            ......*.........
+            .......*........
+            ........*.......
+            .........*......
+            ..........*.....
+            ...........*....
+            ............*...
+            .............*..
+            ..............*.
+            ...............*
+            *...............
+            .*..............
+            ..*.............
+            ...*............
+            ....*...........
+            .....*..........
+            """
+                            
 
 if __name__ == "__main__":
     unittest.main()
