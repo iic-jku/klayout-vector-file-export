@@ -17,6 +17,7 @@
 #--------------------------------------------------------------------------------
 
 from __future__ import annotations
+from dataclasses import dataclass
 from functools import cached_property
 import os
 from pathlib import Path
@@ -31,11 +32,18 @@ from bitmap_vectorizer import BitmapVectorizer
 StippleString = str
 
 
-class StippleVectorCache:
+@dataclass(slots=True)
+class Stipple:
+    stipple_string: StippleString
+    bitmap: Bitmap
+    painter_paths: List[pya.QPainterPath]
+
+
+class StippleCache:
     @classmethod
-    def instance(cls) -> StippleVectorCache:
+    def instance(cls) -> StippleCache:
         if not hasattr(cls, '_instance'):
-            cls._instance = StippleVectorCache()
+            cls._instance = StippleCache()
         return cls._instance
 
     @cached_property
@@ -46,7 +54,7 @@ class StippleVectorCache:
     
     def __init__(self):
         self._svg_cache: Dict[StippleString, Path] = {}
-        self._paint_path_cache: Dict[StippleString, List[pya.QPainterPath]] = {}
+        self._stipple_cache: Dict[StippleString, Stipple] = {}
 
     def _get_or_create_svg_for_stipple_string(self, stipple_string: StippleString) -> Path:
         svg_path = self._svg_cache.get(stipple_string, None)
@@ -54,28 +62,38 @@ class StippleVectorCache:
             return svg_path
         
         bitmap = Bitmap.from_klayout_string(stipple_string)
-        stipple_id = bitmap.to_compact_filename()
+        stipple_id = bitmap.to_compact_filename()        
+        # print(f"stipple string: {stipple_string}, stipple_id: {stipple_id}")
         
-
         stipple_dir = self.cache_base_path / stipple_id
-        svg_path = stipple_dir / Path(f"{stipple_id}.svg")
+        svg_path = stipple_dir / Path('stipple.svg')
         
         if not svg_path.exists() or not svg_path.is_file():  # load persisted SVG
             stipple_dir.mkdir(parents=True, exist_ok=True)
-            bmp_path = stipple_dir / Path(f"{stipple_id}.pbm")
+            bmp_path = stipple_dir / Path('stipple.pbm')
             bitmap.to_pbm(bmp_path)
             BitmapVectorizer.convert_bitmap_to_svg(bmp_path, svg_path)
             
         self._svg_cache[stipple_string] = svg_path
         return svg_path
     
-    def painter_paths_for_stipple(self, stipple_string: StippleString) -> List[pya.QPainterPath]:
-        # check in-memory painter cache first
-        paths = self._paint_path_cache.get(stipple_string)
-        if paths is not None:
-            return paths
-        
+    def _painter_paths_for_stipple(self, stipple_string: StippleString) -> List[pya.QPainterPath]:
         svg_path = self._get_or_create_svg_for_stipple_string(stipple_string)
         paths = BitmapVectorizer.convert_svg_to_qpainter_paths(svg_path)
-        self._paint_path_cache[stipple_string] = paths
         return paths
+
+    def stipple_for_string(self, stipple_string: StippleString) -> Stipple:
+        # check in-memory cache first
+        stipple = self._stipple_cache.get(stipple_string)
+        if stipple is not None:
+            return stipple
+        
+        bitmap = Bitmap.from_klayout_string(stipple_string)        
+        paths = self._painter_paths_for_stipple(stipple_string)
+        stipple = Stipple(stipple_string, bitmap, paths)
+        
+        self._stipple_cache[stipple_string] = stipple
+        return stipple
+        
+        
+    
