@@ -154,18 +154,14 @@ class DesignInfo:
         """
         return self.fig_width_pt / self.width_um
         
-    # Calculate minimum visible feature size at target DPI
-    # pixels = inches * dpi, so µm_per_pixel = design_width_µm / (fig_width_inches * dpi)
-    
     @cached_property
     def um_per_pixel(self) -> float:
         """
         How many µm does one rendered pixel represent in the exported figure?
         """
-        # return self.width_um / (self.fig_width_inch * 72)
         # In QPainter export: 1 pt == 1 pixel
         return 1.0 / self.scale_um_to_pt
-    
+
     @cached_property
     def min_feature_size_um(self):
         return self.um_per_pixel * 2  # Features smaller than 2 pixels won't be visible
