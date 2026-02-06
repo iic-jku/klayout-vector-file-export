@@ -33,12 +33,18 @@ from bitmap import Bitmap
 class TurnPolicy(StrEnum):
     MINORITY = 'minority'
     
+    
+class Interpolation(StrEnum):
+    CUBIC = 'cubic'
+    LINEAR = 'linear'
+    
 
 @dataclass
 class BitmapVectorizerSettings:
     # preprocessing options
-    hpf: int = 4  # high pass filter, 0 to turn off
-    scale_factor: int = 2        # equivalent to PotraceDrag "Scale"
+    hpf: int = 0  # high pass filter, 0 to turn off
+    scale_factor: int = 3        # scale by integer factor n
+    interpolation: Interpolation = Interpolation.LINEAR
     threshold: int = 128         # binarization threshold (0-255)
     
     # tracer settings

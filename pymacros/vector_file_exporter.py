@@ -176,6 +176,62 @@ class VectorFileExporter:
                 # optional: move origin again if needed
                 painter.translate(-self.design_info.bbox.left, -self.design_info.bbox.bottom)
 
+    def draw_stipple(self,
+                     painter: pya.QPainter,
+                     shape_path: pya.QPainterPath,
+                     stipple: Stipple):            
+        # get shape bounding rect
+        bbox = shape_path.boundingRect()
+        
+        painter.save()
+
+        world_trans = painter.worldTransform
+        if not world_trans.isInvertible():
+            print(f"Failed to invert world transformation")
+            return
+        inv_world_trans = world_trans.inverted()
+        
+        painter.setWorldTransform(pya.QTransform())
+        
+        painter.setBrush(pya.QBrush(painter.pen().color))
+        
+        clip_path_device = world_trans.map(shape_path)
+        
+        fill_rect = clip_path_device.boundingRect()
+        
+        painter.setClipPath(clip_path_device)
+
+        STIPPLE_SCALE = 0.36
+
+        spacing_x = stipple.bitmap.width * STIPPLE_SCALE
+        spacing_y = stipple.bitmap.height * STIPPLE_SCALE
+        
+        # NOTE: hot-spot, no logging
+        # if Debugging.DEBUG:
+        #     debug(f"draw_polygon: tile_rect=({stipple.bitmap.width}, {stipple.bitmap.height}), "
+        #           f"spacing=({spacing_x}, {spacing_y}), \n"
+        #           f"stipple=\n{stipple.stipple_string}")
+        
+        x_min = fill_rect.left - spacing_x
+        x_max = fill_rect.right + spacing_x
+        y_min = fill_rect.top - spacing_y
+        y_max = fill_rect.bottom + spacing_y
+
+        x = x_min
+        while x < x_max:
+            y = y_min
+            while y < y_max:
+                painter.save()
+                painter.translate(pya.QPointF(x, y))
+                painter.scale(STIPPLE_SCALE, STIPPLE_SCALE)
+                for tile_path in stipple.painter_paths:
+                    painter.drawPath(tile_path)
+                painter.restore()
+                y += spacing_y
+            x += spacing_x
+        
+        painter.restore()
+
     def draw_shape(self,
                    painter: pya.QPainter,
                    shape: pya.Shape,
@@ -257,51 +313,7 @@ class VectorFileExporter:
                 #     debug(f"draw_polygon: stipple is None")
                 return
             
-            # get polygon bounding rect
-            bbox = poly_path.boundingRect()
-            
-            painter.save()
-
-            world_trans = painter.worldTransform
-            if not world_trans.isInvertible():
-                print(f"Failed to invert world transformation")
-                return
-            inv_world_trans = world_trans.inverted()
-            
-            painter.setWorldTransform(pya.QTransform())
-            clip_path_device = world_trans.map(poly_path)
-            
-            fill_rect = clip_path_device.boundingRect()
-            
-            painter.setClipPath(clip_path_device)
-
-            spacing_x = stipple.bitmap.width
-            spacing_y = stipple.bitmap.height
-            
-            # NOTE: hot-spot, no logging
-            if Debugging.DEBUG:
-                debug(f"draw_polygon: tile_rect=({stipple.bitmap.width}, {stipple.bitmap.height}), "
-                      f"spacing=({spacing_x}, {spacing_y}), \n"
-                      f"stipple=\n{stipple.stipple_string}")
-            
-            x_min = fill_rect.left - spacing_x
-            x_max = fill_rect.right + spacing_x
-            y_min = fill_rect.top - spacing_y
-            y_max = fill_rect.bottom + spacing_y
-            
-            x = x_min
-            while x < x_max:
-                y = y_min
-                while y < y_max:
-                    painter.save()
-                    painter.translate(x, y)
-                    for tile_path in stipple.painter_paths:
-                        painter.drawPath(tile_path)
-                    painter.restore()
-                    y += spacing_y
-                x += spacing_x
-            
-            painter.restore()
+            self.draw_stipple(painter, poly_path, stipple)
         
         if shape.is_box()\
            or shape.is_polygon()\
