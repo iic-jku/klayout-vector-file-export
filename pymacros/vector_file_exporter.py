@@ -27,7 +27,7 @@ from typing import *
 
 from klayout_plugin_utils.debugging import debug, Debugging
 
-from design_info import DesignInfo
+from design_info import DesignInfo, MM_PER_PT
 from progress_reporter import ProgressReporter
 from stipple_cache import *
 from vector_file_export_settings import *
@@ -257,39 +257,44 @@ class VectorFileExporter:
                 #     debug(f"draw_polygon: stipple is None")
                 return
             
-            painter.save()
-            painter.setClipPath(poly_path)
-            
             # get polygon bounding rect
-            fill_rect = poly_path.boundingRect()
+            bbox = poly_path.boundingRect()
             
-            spacing_x = float(stipple.bitmap.width) / self.design_info.scale_um_to_pt
-            spacing_y = float(stipple.bitmap.height) / self.design_info.scale_um_to_pt
+            painter.save()
 
+            world_trans = painter.worldTransform
+            if not world_trans.isInvertible():
+                print(f"Failed to invert world transformation")
+                return
+            inv_world_trans = world_trans.inverted()
+            
+            painter.setWorldTransform(pya.QTransform())
+            clip_path_device = world_trans.map(poly_path)
+            
+            fill_rect = clip_path_device.boundingRect()
+            
+            painter.setClipPath(clip_path_device)
+
+            spacing_x = stipple.bitmap.width
+            spacing_y = stipple.bitmap.height
+            
             # NOTE: hot-spot, no logging
-            # if Debugging.DEBUG:
-            #     debug(f"draw_polygon: tile_rect=({stipple.bitmap.width}, {stipple.bitmap.height}), "
-            #           f"spacing=({spacing_x}, {spacing_y}), \n"
-            #           f"stipple=\n{stipple.stipple_string}")
-
-            if spacing_x <= 0 or spacing_y <= 0:  # avoid endless loops
-                painter.restore()
-                return
-
-            if fill_rect.width < spacing_x or fill_rect.height < spacing_y:
-                painter.restore()
-                return
+            if Debugging.DEBUG:
+                debug(f"draw_polygon: tile_rect=({stipple.bitmap.width}, {stipple.bitmap.height}), "
+                      f"spacing=({spacing_x}, {spacing_y}), \n"
+                      f"stipple=\n{stipple.stipple_string}")
             
-            x = fill_rect.left - spacing_x
-            while x < fill_rect.right + spacing_x:
-                if self.progress_reporter is not None:
-                    if self.progress_reporter.was_canceled():
-                        raise ExportCancelledError()
-                
-                y = fill_rect.top - spacing_y
-                while y < fill_rect.bottom + spacing_y:
+            x_min = fill_rect.left - spacing_x
+            x_max = fill_rect.right + spacing_x
+            y_min = fill_rect.top - spacing_y
+            y_max = fill_rect.bottom + spacing_y
+            
+            x = x_min
+            while x < x_max:
+                y = y_min
+                while y < y_max:
                     painter.save()
-                    painter.translate(pya.QPointF(x, y))
+                    painter.translate(x, y)
                     for tile_path in stipple.painter_paths:
                         painter.drawPath(tile_path)
                     painter.restore()
