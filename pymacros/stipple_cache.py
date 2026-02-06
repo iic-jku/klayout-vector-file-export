@@ -27,6 +27,7 @@ import pya
 
 from bitmap import Bitmap
 from bitmap_vectorizer import BitmapVectorizer
+from svg_painter import convert_svg_to_qpainter_paths
 
 
 StippleString = str
@@ -71,15 +72,16 @@ class StippleCache:
         if not svg_path.exists() or not svg_path.is_file():  # load persisted SVG
             stipple_dir.mkdir(parents=True, exist_ok=True)
             bmp_path = stipple_dir / Path('stipple.pbm')
+            bmp_preproc_path = stipple_dir / Path('stipple_preprocessed.pbm')
             bitmap.to_pbm(bmp_path)
-            BitmapVectorizer.convert_bitmap_to_svg(bmp_path, svg_path)
+            BitmapVectorizer.convert_bitmap_to_svg(bmp_path, bmp_preproc_path, svg_path)
             
         self._svg_cache[stipple_string] = svg_path
         return svg_path
     
     def _painter_paths_for_stipple(self, stipple_string: StippleString) -> List[pya.QPainterPath]:
         svg_path = self._get_or_create_svg_for_stipple_string(stipple_string)
-        paths = BitmapVectorizer.convert_svg_to_qpainter_paths(svg_path)
+        paths = convert_svg_to_qpainter_paths(svg_path)
         return paths
 
     def stipple_for_string(self, stipple_string: StippleString) -> Stipple:

@@ -16,186 +16,84 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #--------------------------------------------------------------------------------
 
+from dataclasses import dataclass
 import subprocess
 import tempfile
 import os
 from pathlib import Path
-import re
-from typing import *
-import unittest
-from xml.dom import minidom
+import sys
 
 import pya
+
+from klayout_plugin_utils.str_enum_compat import StrEnum
 
 from bitmap import Bitmap
 
 
+class TurnPolicy(StrEnum):
+    MINORITY = 'minority'
+    
+
+@dataclass
+class BitmapVectorizerSettings:
+    # preprocessing options
+    hpf: int = 4  # high pass filter, 0 to turn off
+    scale_factor: int = 2        # equivalent to PotraceDrag "Scale"
+    threshold: int = 128         # binarization threshold (0-255)
+    
+    # tracer settings
+    turdsize: int = 2            # ignore tiny speckles
+    alphamax: float = 0.0        # disable smoothing
+    opttolerance: float = 0.0    # disable curve optimization
+    turnpolicy: TurnPolicy = TurnPolicy.MINORITY   # Potrace corner policy
+
+
 class BitmapVectorizer:
     @staticmethod
-    def convert_bitmap_to_svg(bitmap_path: Path,
-                              svg_path: Path):
+    def convert_bitmap_to_svg(input_bitmap_path: Path,
+                              preprocessed_bitmap_path: Path,
+                              svg_path: Path,
+                              settings: BitmapVectorizerSettings = BitmapVectorizerSettings()):
         """
         Convert a bitmap to a list of QPainterPath objects using Potrace.
         """
-        subprocess.run(["potrace", bitmap_path, "-s", "-o", svg_path], check=True)
-    
-    @staticmethod
-    def convert_svg_to_qpainter_paths(svg_path: Path) -> List[pya.QPainterPath]:
-        doc = minidom.parse(str(svg_path))
-        path_strings = [path.getAttribute('d') for path in doc.getElementsByTagName('path')]
-        doc.unlink()
         
-        paths: List[pya.QPainterPath] = []
+        # -----------------------------
+        # Load and preprocess image
+        # -----------------------------
+
+        mkbitmap_cmd = [
+            'mkbitmap',
+            '--output', str(preprocessed_bitmap_path.resolve()),
+        ]
+
+        if settings.hpf <= 0:
+            mkbitmap_cmd += ['--nofilter']
+        else:
+            mkbitmap_cmd += ['--filter', str(settings.hpf)]
         
-        token_re = re.compile(r"[MmLlCcZz]|-?\d+(?:\.\d+)?")
+        mkbitmap_cmd += [
+            '--threshold', str(float(settings.threshold) / 256.0),
+            '--scale', str(settings.scale_factor),
+            '--cubic',
+            str(input_bitmap_path.resolve())
+        ]
+
+        subprocess.run(mkbitmap_cmd, check=True)
         
-        for d in path_strings:
-            tokens = token_re.findall(d)
-            
-            path = pya.QPainterPath()
-            
-            
-            cur = pya.QPointF(0.0, 0.0)
-            start = pya.QPointF(0.0, 0.0)
-
-            i = 0
-            cmd = None
-
-            while i < len(tokens):
-                t = tokens[i]
-
-                if re.match(r"[MmLlCcZz]", t):
-                    cmd = t
-                    i += 1
-                else:
-                    # implicit command repetition
-                    pass
-
-                if cmd in ("M", "m"):
-                    x = float(tokens[i]); y = float(tokens[i+1])
-                    i += 2
-                    if cmd == "m":
-                        cur += pya.QPointF(x, -y)
-                    else:
-                        cur = pya.QPointF(x, -y)
-
-                    path.moveTo(cur)
-                    start = pya.QPointF(cur.x, cur.y)
-
-                    # SVG spec: subsequent coords after M are treated as L
-                    cmd = "L" if cmd == "M" else "l"
-
-                elif cmd in ("L", "l"):
-                    x = float(tokens[i]); y = float(tokens[i+1])
-                    i += 2
-                    if cmd == "l":
-                        cur += pya.QPointF(x, -y)
-                    else:
-                        cur = pya.QPointF(x, -y)
-                    path.lineTo(cur)
-
-                elif cmd in ("C", "c"):
-                    x1 = float(tokens[i]);   y1 = float(tokens[i+1])
-                    x2 = float(tokens[i+2]); y2 = float(tokens[i+3])
-                    x3 = float(tokens[i+4]); y3 = float(tokens[i+5])
-                    i += 6
-
-                    if cmd == "c":
-                        p1 = cur + pya.QPointF(x1, -y1)
-                        p2 = cur + pya.QPointF(x2, -y2)
-                        cur += pya.QPointF(x3, -y3)
-                    else:
-                        p1 = pya.QPointF(x1, -y1)
-                        p2 = pya.QPointF(x2, -y2)
-                        cur = pya.QPointF(x3, -y3)
-
-                    path.cubicTo(p1, p2, cur)
-
-                elif cmd in ("Z", "z"):
-                    path.closeSubpath()
-                    cur = pya.QPointF(start.x, start.y)
-                else:
-                    raise ValueError(f"Unsupported SVG command: {cmd}")
-
-            paths.append(path)
-
-        return paths
-
-
-#--------------------------------------------------------------------------------
-
-class BitmapVectorizerPdfRenderTests(unittest.TestCase):
-    def test_render_svg_paths_to_pdf(self):
-    
-        svg_xml = """<?xml version="1.0" standalone="no"?>
-<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 20010904//EN"
- "http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd">
-<svg version="1.0" xmlns="http://www.w3.org/2000/svg"
- width="16.000000pt" height="16.000000pt" viewBox="0 0 16.000000 16.000000"
- preserveAspectRatio="xMidYMid meet">
-<metadata>
-Created by potrace 1.16, written by Peter Selinger 2001-2019
-</metadata>
-<g transform="translate(0.000000,16.000000) scale(0.100000,-0.100000)"
-fill="#000000" stroke="none">
-<path d="M75 78 l-80 -83 83 80 c45 44 82 81 82 82 0 8 -11 -3 -85 -79z"/>
-</g>
-</svg>
-        """    
-    
-        svg_path = Path("/tmp/svg2pdf_in.svg")
-        svg_path.write_text(svg_xml)
+        # -----------------------------
+        # Run Potrace CLI
+        # -----------------------------
         
-        pdf_path = Path("/tmp/svg2pdf_out.pdf")
+        potrace_cmd = [
+            'potrace', 
+            str(preprocessed_bitmap_path),
+            '--svg', 
+            '--output', str(svg_path.resolve()),
+            '--turdsize', str(settings.turdsize),
+            '--alphamax', str(settings.alphamax),
+            '--opttolerance', str(settings.opttolerance),
+            '--turnpolicy', settings.turnpolicy.value
+        ]
         
-        try:
-            # Convert SVG paths
-            paths = BitmapVectorizer.convert_svg_to_qpainter_paths(svg_path)
-            self.assertGreater(len(paths), 0, "No paths extracted from SVG")
-            
-            # Create PDF writer
-            pdf = pya.QPdfWriter(str(pdf_path))
-            pdf.setResolution(72)
-            pdf.setTitle("BitmapVectorizer test")
-            
-            dev = pdf.asQPagedPaintDevice()
-            dev.setPageSize(pya.QPageSize(pya.QPageSize.A4))
-            
-            painter = pya.QPainter(dev)
-            try:
-                painter.setRenderHint(pya.QPainter.Antialiasing)
-                painter.setBrush(pya.QBrush(pya.QColor("black")))
-
-                pen = pya.QPen(pya.QColor("black"))
-                pen.setWidthF(0.5)
-                pen.setCosmetic(True)
-                painter.setPen(pen)
-            
-                # Coordinate system:
-                # SVG uses +Y down; your parser flipped Y already.
-                # We just need a convenient scale.
-                
-                ### painter.scale(1.0, 1.0)
-                
-                # Normalize placement
-                bounds = pya.QPainterPath()
-                for p in paths:
-                    bounds.addPath(p)
-
-                bbox = bounds.boundingRect()
-                painter.translate(-bbox.left, -bbox.top)
-            
-                
-                for path in paths:
-                    painter.drawPath(path)
-            
-            finally:
-                painter.end()
-        finally:
-            print(f"path exported to {pdf_path}")
-            # os.remove(pdf_path)
-
-
-
-if __name__ == "__main__": 
-    unittest.main()
+        subprocess.run(potrace_cmd, check=True)
