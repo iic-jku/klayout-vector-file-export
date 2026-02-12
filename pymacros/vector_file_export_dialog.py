@@ -150,6 +150,8 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         except ExportCancelledError as e:
             pass
         except Exception as e:
+            self.progress_dialog.cancel()
+        
             print("VectorFileExportDialog.on_ok caught an exception", e)
             traceback.print_exc()
             qmessagebox_critical('Error',
