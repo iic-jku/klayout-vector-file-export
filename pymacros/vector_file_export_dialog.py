@@ -145,6 +145,19 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
             exporter = VectorFileExporter(layout_view=pya.LayoutView.current(),
                                           settings=settings,
                                           progress_reporter=self)
+            
+            if settings.include_stipples:
+                notfound = []
+                if not shutil.which('potrace'):
+                    notfound += ['potrace']
+                if not shutil.which('mkbitmap'):
+                    notfound += ['mkbitmap']
+                if notfound:
+                    raise Exception(f"Executable{'s' if len(notfound) >= 2 else ''} {' / '.join(notfound)}"
+                                    f" not found in PATH (required for stipple export)")
+            
+            settings.save()
+            
             exporter.export()
             self.accept()
         except ExportCancelledError as e:
