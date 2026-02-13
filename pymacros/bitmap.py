@@ -18,12 +18,15 @@
 
 from __future__ import annotations
 from dataclasses import dataclass
+from math import ceil
 import os
 import tempfile
 from typing import *
 import unittest
 
 import pya
+
+from klayout_plugin_utils.debugging import debug, Debugging
 
 from klayout_plugin_utils.base36 import *
 
@@ -34,6 +37,41 @@ class Bitmap:
     height: int
     data: bytearray  # flat, row-major, 0 or 1 per pixel
     
+    # ----------------------------------------
+    # Panelization
+    # ----------------------------------------
+    
+    def panelize(self, min_w: int, min_h: int) -> Bitmap:
+        if self.width == 0 or self.height == 0:
+            return Bitmap(0, 0, bytearray())
+        
+        tile_w = self.width
+        tile_h = self.height
+        
+        nx = ceil(min_w / tile_w)
+        ny = ceil(min_h / tile_h)
+        
+        panel_w = nx * tile_w
+        panel_h = ny * tile_h
+        
+        if Debugging.DEBUG:
+            debug(f"Bitmap.panelize: tile {tile_w}x{tile_h}, "
+                  f"requested {min_w:.3f}x{min_h:3f} "
+                  f"=> panel {panel_w}x{panel_h} ({nx}x{ny})")
+        
+        panel_data = bytearray(panel_w * panel_h)
+        
+        tile_data = self.data
+        
+        for y in range(panel_h):
+            src_y = (y % tile_h) * tile_w
+            dst_y = y * panel_w
+            for x in range(panel_w):
+                panel_data[dst_y + x] = tile_data[src_y + (x % tile_w)]
+        
+        bitmap = Bitmap(panel_w, panel_h, panel_data)
+        return bitmap
+        
     # ----------------------------------------
     # KLayout String format read/write
     # ----------------------------------------
@@ -191,7 +229,7 @@ class Bitmap:
             height = base36_to_int(h_str)
             n_bits = width * height
             packed = base36_to_bytes(data_str)
-            data = self.bytes_to_bits(packed, n_bits)
+            data = cls.bytes_to_bits(packed, n_bits)
             return cls(width, height, data)
         except Exception as e:
             raise ValueError(f"Invalid compact filename: {s}") from e
@@ -331,7 +369,31 @@ class BitmapTests(unittest.TestCase):
             ....*...........
             .....*..........
             """
-                            
+                
+    def test_panelize(self):
+        s = """
+            *..
+            .*.
+            ..*
+            """
+        b = Bitmap.from_klayout_string(s)
+        
+        panel = b.panelize(min_w=7, min_h=7)  # -> 9x9
+        self.assertEqual(9, panel.width)
+        self.assertEqual(9, panel.height)
+        
+        expected_s = """*..*..*..
+.*..*..*.
+..*..*..*
+*..*..*..
+.*..*..*.
+..*..*..*
+*..*..*..
+.*..*..*.
+..*..*..*"""
+        
+        self.assertEqual(expected_s, panel.to_klayout_string())            
+        
 
 if __name__ == "__main__":
     unittest.main()

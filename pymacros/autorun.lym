@@ -63,6 +63,7 @@ import design_info
 import bitmap
 import bitmap_vectorizer
 import svg_painter
+import stipple
 import stipple_cache
 reload(klayout_plugin_utils.debugging)
 reload(klayout_plugin_utils.editor_options)
@@ -79,6 +80,7 @@ reload(design_info)
 reload(bitmap)
 reload(bitmap_vectorizer)
 reload(svg_painter)
+reload(stipple)
 reload(stipple_cache)
 
 import klayout_plugin_utils.debugging

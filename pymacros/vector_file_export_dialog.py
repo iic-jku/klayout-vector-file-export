@@ -20,6 +20,7 @@ import pya
 
 import os
 from pathlib import Path
+import shutil
 import traceback
 
 from klayout_plugin_utils.debugging import debug, Debugging
@@ -37,6 +38,9 @@ path_containing_this_script = os.path.realpath(os.path.dirname(__file__))
 class VectorFileExportDialog(pya.QDialog, ProgressReporter):
     def __init__(self, settings: VectorFileExportSettings, parent=None):
         super().__init__(parent)
+        
+        self.progress_dialog = None
+        
         self.setWindowTitle('Vector File Export')
         
         loader = pya.QUiLoader()
@@ -140,7 +144,6 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         
         try:
             settings = self.settings_from_ui()
-            settings.save()
         
             exporter = VectorFileExporter(layout_view=pya.LayoutView.current(),
                                           settings=settings,
@@ -163,17 +166,16 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         except ExportCancelledError as e:
             pass
         except Exception as e:
-            self.progress_dialog.cancel()
-        
-            print("VectorFileExportDialog.on_ok caught an exception", e)
-            traceback.print_exc()
+            if self.progress_dialog is not None:
+                self.progress_dialog.cancel()
+            
             qmessagebox_critical('Error',
                                  f"Failed to export layout in vector format",
                                  f"Caught exception: <pre>{e}</pre>")
         finally:
             if self.progress_dialog is not None:
                 self.progress_dialog.close()
-            self.exportButton.setEnabled(False)        
+            self.exportButton.setEnabled(True)        
 
     def on_cancel(self):
         if Debugging.DEBUG:

@@ -25,6 +25,7 @@ import sys
 
 import pya
 
+from klayout_plugin_utils.debugging import debug, Debugging
 from klayout_plugin_utils.str_enum_compat import StrEnum
 
 from bitmap import Bitmap
@@ -85,7 +86,14 @@ class BitmapVectorizer:
             str(input_bitmap_path.resolve())
         ]
 
-        subprocess.run(mkbitmap_cmd, check=True)
+        if Debugging.DEBUG:
+            debug(f"BitmapVectorizer.convert_bitmap_to_svg: running {' '.join(mkbitmap_cmd)}")
+
+        result = subprocess.run(mkbitmap_cmd, check=True)
+
+        if Debugging.DEBUG:
+            debug(f"BitmapVectorizer.convert_bitmap_to_svg: mkbitmap terminated "
+                  f"with return code {result.returncode}")
         
         # -----------------------------
         # Run Potrace CLI
@@ -101,5 +109,12 @@ class BitmapVectorizer:
             '--opttolerance', str(settings.opttolerance),
             '--turnpolicy', settings.turnpolicy.value
         ]
+
+        if Debugging.DEBUG:
+            debug(f"BitmapVectorizer.convert_bitmap_to_svg: running {' '.join(potrace_cmd)}")
         
-        subprocess.run(potrace_cmd, check=True)
+        result = subprocess.run(potrace_cmd, check=True)
+
+        if Debugging.DEBUG:
+            debug(f"BitmapVectorizer.convert_bitmap_to_svg: potrace terminated "
+                  f"with return code {result.returncode}")

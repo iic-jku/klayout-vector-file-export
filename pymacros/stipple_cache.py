@@ -27,17 +27,17 @@ import pya
 
 from bitmap import Bitmap
 from bitmap_vectorizer import BitmapVectorizer
+from exception import ExportCancelledError
+from progress_reporter import ProgressReporter
+from stipple import Stipple, StippleString, StipplePanel
 from svg_painter import convert_svg_to_qpainter_paths
 
 
-StippleString = str
-
-
-@dataclass(slots=True)
-class Stipple:
-    stipple_string: StippleString
-    bitmap: Bitmap
-    painter_paths: List[pya.QPainterPath]
+@dataclass(frozen=True) 
+class StippleCacheKey:
+    tile_stipple_id: str
+    width: int
+    height: int
 
 
 class StippleCache:
@@ -54,48 +54,40 @@ class StippleCache:
         return BASE_PATH
     
     def __init__(self):
-        self._svg_cache: Dict[StippleString, Path] = {}
-        self._stipple_cache: Dict[StippleString, Stipple] = {}
+        self._painter_path_cache: Dict[StippleCacheKey, List[pya.QPainterPath]] = {}
 
-    def _get_or_create_svg_for_stipple_string(self, stipple_string: StippleString) -> Path:
-        svg_path = self._svg_cache.get(stipple_string, None)
-        if svg_path is not None:
-            return svg_path
+    def panelize(self, 
+                 stipple: Stipple,
+                 min_w: int, 
+                 min_h: int,
+                 progress_reporter: Optional[ProgressReporter]) -> StipplePanel:
+        panel_bitmap = stipple.bitmap.panelize(min_w, min_h)
         
-        bitmap = Bitmap.from_klayout_string(stipple_string)
-        stipple_id = bitmap.to_compact_filename()        
-        # print(f"stipple string: {stipple_string}, stipple_id: {stipple_id}")
+        key = StippleCacheKey(stipple.id, panel_bitmap.width, panel_bitmap.height)
         
-        stipple_dir = self.cache_base_path / stipple_id
-        svg_path = stipple_dir / Path('stipple.svg')
+        stipple_panel_dir = self.cache_base_path / stipple.id / f"{panel_bitmap.width}x{panel_bitmap.height}"
+        stipple_panel_dir.mkdir(parents=True, exist_ok=True)
+        
+        paths = self._painter_path_cache.get(key)
+        if paths is None:
+            svg_path = self._get_or_create_svg_for_bitmap(panel_bitmap, stipple_panel_dir)
+            
+            paths = convert_svg_to_qpainter_paths(svg_path, progress_reporter)
+            
+            self._painter_path_cache[key] = paths
+        
+        return StipplePanel(stipple, panel_bitmap.width, panel_bitmap.height, paths)
+    
+    def _get_or_create_svg_for_bitmap(self, 
+                                      bitmap: Bitmap,
+                                      run_dir: Path) -> Path:
+        svg_path = run_dir / Path('stipple.svg')
         
         if not svg_path.exists() or not svg_path.is_file():  # load persisted SVG
-            stipple_dir.mkdir(parents=True, exist_ok=True)
-            bmp_path = stipple_dir / Path('stipple.pbm')
-            bmp_preproc_path = stipple_dir / Path('stipple_preprocessed.pbm')
+            bmp_path = run_dir / Path('stipple.pbm')
+            bmp_preproc_path = run_dir / Path('stipple_preprocessed.pbm')
             bitmap.to_pbm(bmp_path)
             BitmapVectorizer.convert_bitmap_to_svg(bmp_path, bmp_preproc_path, svg_path)
             
-        self._svg_cache[stipple_string] = svg_path
         return svg_path
-    
-    def _painter_paths_for_stipple(self, stipple_string: StippleString) -> List[pya.QPainterPath]:
-        svg_path = self._get_or_create_svg_for_stipple_string(stipple_string)
-        paths = convert_svg_to_qpainter_paths(svg_path)
-        return paths
-
-    def stipple_for_string(self, stipple_string: StippleString) -> Stipple:
-        # check in-memory cache first
-        stipple = self._stipple_cache.get(stipple_string)
-        if stipple is not None:
-            return stipple
-        
-        bitmap = Bitmap.from_klayout_string(stipple_string)        
-        paths = self._painter_paths_for_stipple(stipple_string)
-        stipple = Stipple(stipple_string, bitmap, paths)
-        
-        self._stipple_cache[stipple_string] = stipple
-        return stipple
-        
-        
     

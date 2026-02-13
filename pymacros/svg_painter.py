@@ -20,9 +20,14 @@ from pathlib import Path
 import re
 from typing import *
 import unittest
-from xml.dom import minidom
+import xml.etree.ElementTree as ET
 
 import pya
+
+from klayout_plugin_utils.debugging import debug, Debugging
+
+from exception import ExportCancelledError
+from progress_reporter import ProgressReporter
 
 
 _transform_re = re.compile(r"(\w+)\(([^)]*)\)")
@@ -56,8 +61,19 @@ def parse_svg_transform(transform: str) -> pya.QTransform:
     return t
 
 
-def convert_svg_to_qpainter_paths(svg_path: Path) -> List[pya.QPainterPath]:
-    doc = minidom.parse(str(svg_path))
+def convert_svg_to_qpainter_paths(svg_path: Path,
+                                  progress_reporter: Optional[ProgressReporter]) -> List[pya.QPainterPath]:
+    if Debugging.DEBUG:
+        debug(f"convert_svg_to_qpainter_paths: begin parsing SVG file {svg_path}")
+    
+    tree = ET.parse(str(svg_path))
+    root = tree.getroot()
+    
+    if Debugging.DEBUG:
+        debug(f"convert_svg_to_qpainter_paths: end parsing SVG file {svg_path}")
+    
+    if Debugging.DEBUG:
+        debug(f"convert_svg_to_qpainter_paths: begin QPainterPath object creation")
     
     paths: List[pya.QPainterPath] = []
     
@@ -65,14 +81,15 @@ def convert_svg_to_qpainter_paths(svg_path: Path) -> List[pya.QPainterPath]:
     
     def walk(node, transform: pya.QTransform):
         # Update transform if this node has one
-
-        if node.nodeType == node.ELEMENT_NODE:
-            if node.hasAttribute("transform"):
-                local = parse_svg_transform(node.getAttribute("transform"))
-                transform = transform * local
+        local_transform = transform
+        transform_attr = node.attrib.get("transform")
+        if transform_attr:
+            local = parse_svg_transform(transform_attr)
+            local_transform = transform * local
     
-        if node.nodeType == node.ELEMENT_NODE and node.tagName == "path":
-            d = node.getAttribute("d")
+        # Process <path> elements
+        if node.tag.endswith("path"):
+            d = node.attrib.get("d", "")
             tokens = token_re.findall(d)
     
             path = pya.QPainterPath()
@@ -83,6 +100,10 @@ def convert_svg_to_qpainter_paths(svg_path: Path) -> List[pya.QPainterPath]:
             cmd = None
     
             while i < len(tokens):
+                if progress_reporter is not None\
+                   and progress_reporter.was_canceled():
+                   raise ExportCancelledError()
+            
                 t = tokens[i]
     
                 if re.match(r"[MmLlCcZz]", t):
@@ -131,100 +152,18 @@ def convert_svg_to_qpainter_paths(svg_path: Path) -> List[pya.QPainterPath]:
                     cur = pya.QPointF(start.x, start.y)
     
             # 🔑 apply composed SVG transform here
-            path = transform.map(path)
+            path = local_transform.map(path)
             paths.append(path)
     
-        for child in node.childNodes:
-            walk(child, transform)
+        for child in node:
+            walk(child, local_transform)
     
-    walk(doc.documentElement, pya.QTransform())
-    doc.unlink()
+    walk(root, pya.QTransform())
     
-    return paths
-    
-
-
-def ___convert_svg_to_qpainter_paths(svg_path: Path) -> List[pya.QPainterPath]:
-    doc = minidom.parse(str(svg_path))
-    path_strings = [path.getAttribute('d') for path in doc.getElementsByTagName('path')]
-    doc.unlink()
-    
-    paths: List[pya.QPainterPath] = []
-    
-    token_re = re.compile(r"[MmLlCcZz]|-?\d+(?:\.\d+)?")
-    
-    for d in path_strings:
-        tokens = token_re.findall(d)
-        
-        path = pya.QPainterPath()
-        
-        
-        cur = pya.QPointF(0.0, 0.0)
-        start = pya.QPointF(0.0, 0.0)
-    
-        i = 0
-        cmd = None
-    
-        while i < len(tokens):
-            t = tokens[i]
-    
-            if re.match(r"[MmLlCcZz]", t):
-                cmd = t
-                i += 1
-            else:
-                # implicit command repetition
-                pass
-    
-            if cmd in ("M", "m"):
-                x = float(tokens[i]); y = float(tokens[i+1])
-                i += 2
-                if cmd == "m":
-                    cur += pya.QPointF(x, -y)
-                else:
-                    cur = pya.QPointF(x, -y)
-    
-                path.moveTo(cur)
-                start = pya.QPointF(cur.x, cur.y)
-    
-                # SVG spec: subsequent coords after M are treated as L
-                cmd = "L" if cmd == "M" else "l"
-    
-            elif cmd in ("L", "l"):
-                x = float(tokens[i]); y = float(tokens[i+1])
-                i += 2
-                if cmd == "l":
-                    cur += pya.QPointF(x, -y)
-                else:
-                    cur = pya.QPointF(x, -y)
-                path.lineTo(cur)
-    
-            elif cmd in ("C", "c"):
-                x1 = float(tokens[i]);   y1 = float(tokens[i+1])
-                x2 = float(tokens[i+2]); y2 = float(tokens[i+3])
-                x3 = float(tokens[i+4]); y3 = float(tokens[i+5])
-                i += 6
-    
-                if cmd == "c":
-                    p1 = cur + pya.QPointF(x1, -y1)
-                    p2 = cur + pya.QPointF(x2, -y2)
-                    cur += pya.QPointF(x3, -y3)
-                else:
-                    p1 = pya.QPointF(x1, -y1)
-                    p2 = pya.QPointF(x2, -y2)
-                    cur = pya.QPointF(x3, -y3)
-    
-                path.cubicTo(p1, p2, cur)
-    
-            elif cmd in ("Z", "z"):
-                path.closeSubpath()
-                cur = pya.QPointF(start.x, start.y)
-            else:
-                raise ValueError(f"Unsupported SVG command: {cmd}")
-    
-        paths.append(path)
+    if Debugging.DEBUG:
+        debug(f"convert_svg_to_qpainter_paths: end QPainterPath object creation")
     
     return paths
-
 
 #--------------------------------------------------------------------------------
 
