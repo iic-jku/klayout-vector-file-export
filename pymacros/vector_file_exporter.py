@@ -431,7 +431,7 @@ class VectorFileExporter:
                         pen = self.pen(color=pya.QColor(gray_value, gray_value, gray_value), width_f=width_f)
                         painter.setPen(pen)
                     case ColorMode.COLOR:
-                        pen = self.pen(color=pya.QColor(frame_color), width_f=width_f)
+                        pen = self.pen(color=frame_color, width_f=width_f)
                         painter.setPen(pen)
             
             stipple_panel: Optional[StipplePanel] = None
