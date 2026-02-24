@@ -178,27 +178,18 @@ class VectorFileExporter:
         if Debugging.DEBUG:
             debug(f"VectorFileExporter.draw_stipple: enter")
 
-        # get shape bounding rect
-        bbox = shape_path.boundingRect()
-        
-        painter.save()
-
         world_trans = painter.worldTransform
         if not world_trans.isInvertible():
             print(f"ERROR: Failed to invert world transformation")
             return
         inv_world_trans = world_trans.inverted()
         
-        painter.setWorldTransform(pya.QTransform())
-        
-        painter.setBrush(pya.QBrush(painter.pen().color))
+        # get shape bounding rect
+        bbox = shape_path.boundingRect()
         
         clip_path_device = world_trans.map(shape_path)
-        
         fill_rect = clip_path_device.boundingRect()
         
-        painter.setClipPath(clip_path_device)
-
         STIPPLE_SCALE = 0.2  # 0.3
 
         # NOTE: hot-spot, no logging
@@ -209,13 +200,21 @@ class VectorFileExporter:
         margin_y = stipple_panel.stipple.height * 3
         x = fill_rect.left - margin_x
         y = fill_rect.top - margin_y
-        painter.save()
-        painter.translate(pya.QPointF(x, y))
-        painter.scale(STIPPLE_SCALE, STIPPLE_SCALE)
-        for path in stipple_panel.painter_paths:
-            painter.drawPath(path)
-        painter.restore()
+
+        stipple_to_device = pya.QTransform()
+        stipple_to_device.translate(x, y)
+        stipple_to_device.scale(STIPPLE_SCALE, STIPPLE_SCALE)
         
+        painter.save()
+        painter.setWorldTransform(pya.QTransform())
+        painter.setBrush(pya.QBrush(painter.pen().color))
+
+        for path in stipple_panel.painter_paths:
+            path_device = stipple_to_device.map(path)
+            clipped = path_device.intersected(clip_path_device)
+            if not clipped.isEmpty():
+                painter.drawPath(clipped)
+                
         painter.restore()
 
         if Debugging.DEBUG:
