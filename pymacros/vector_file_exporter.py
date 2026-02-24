@@ -75,17 +75,28 @@ class VectorFileExporter:
                 svg.setFileName(str(output_path))
                 svg.setResolution(72)
                 svg.setTitle(self.settings.title)
-                            
-                # Ensure correct size and scaling
+
+                # Canvas = full page size (like PDF), not just the figure/design size.
+                # QSvgGenerator has no orientation concept, so we apply it manually
+                # by swapping width/height for portrait vs landscape.
                 page_size_pt = self.settings.page_size().sizePoints()
 
-                # consider QPageSize                
-                # svg.setSize(pya.QSize(int(page_size_pt.width), int(page_size_pt.height)))
+                raw_w = int(self.design_info.fig_width_pt)
+                raw_h = int(self.design_info.fig_height_pt)
 
-                # NOTE: with SVG, we ignore the page related stuff
-                fig_size_pt = pya.QSize(int(self.design_info.fig_width_pt), int(self.design_info.fig_height_pt))
+                match self.settings.page_orientation:
+                    case PageOrientation.PORTRAIT:
+                        page_w = int(min(page_size_pt.width, page_size_pt.height))
+                        page_h = int(max(page_size_pt.width, page_size_pt.height))
+                    case PageOrientation.LANDSCAPE:
+                        page_w = int(max(page_size_pt.width, page_size_pt.height))
+                        page_h = int(min(page_size_pt.width, page_size_pt.height))
+                    case _:
+                        raise NotImplementedError(f"Unhandled enum case {self.settings.page_orientation}")
+            
+                fig_size_pt = pya.QSize(page_w, page_h)
                 svg.setSize(fig_size_pt)
-                svg.setViewBox(pya.QRect(0, 0, fig_size_pt.width, fig_size_pt.height))
+                svg.setViewBox(pya.QRect(0, 0, page_w, page_h))
                 
                 painter = pya.QPainter(svg)
                 self._svg = svg
@@ -128,48 +139,37 @@ class VectorFileExporter:
         font.setPointSizeF(font_size_pt)
         painter.setFont(font)
         
-        page_size = self.settings.page_size()
-        page_size_pt = page_size.sizePoints()
+        page_size_pt = self.settings.page_size().sizePoints()
         
         width: float
         height: float
         
         match self.settings.page_orientation:
             case PageOrientation.PORTRAIT:
-                width = page_size_pt.width
-                height = page_size_pt.height
+                width = min(page_size_pt.width, page_size_pt.height)
+                height = max(page_size_pt.width, page_size_pt.height)
             case PageOrientation.LANDSCAPE:
-                width = page_size_pt.height
-                height = page_size_pt.width
+                width = max(page_size_pt.width, page_size_pt.height)
+                height = min(page_size_pt.width, page_size_pt.height)
             case _:
                 raise NotImplementedError()
         
         offset_x = (width - self.design_info.fig_width_pt) / 2
         offset_y = (height - self.design_info.fig_height_pt) / 2
         
-        # print(f"Bounding box: {design_info.width_um} x {design_info.height_um} µm")
-        # print(f"Target bounding box: {design_info.fig_width_pt:.2f} x {design_info.fig_height_pt:.2f} pt  (scale_um_to_pt {design_info.scale_um_to_pt:.6f})")
-        # page_size_mm = page_size.size(pya.QPageSize_Unit.Millimeter)
-        # print(f"Page size: {page_size_mm.width} x {page_size_mm.height} mm "
-        #       f"({page_size_pt.width} x {page_size_pt.height} pt)")
-                
-        match self.settings.file_format:
-            case VectorFileFormat.SVG:
-                # Scale layout units → points, flip Y
-                painter.scale(self.design_info.scale_um_to_pt, -self.design_info.scale_um_to_pt)
-                 
-                # Move bbox origin to (0,0)
-                painter.translate(-self.design_info.bbox.left,
-                                  -self.design_info.bbox.height())
-            case VectorFileFormat.PDF:  # scale and flip Y
-                # center on page
-                painter.translate(offset_x, offset_y + self.design_info.fig_height_pt)
-                
-                # flip Y (PDF Y is down, layout Y is up)
-                painter.scale(self.design_info.scale_um_to_pt, -self.design_info.scale_um_to_pt)
-                
-                # optional: move origin again if needed
-                painter.translate(-self.design_info.bbox.left, -self.design_info.bbox.bottom)
+        # For PDF, Qt applies printer margins internally which shift the
+        # paint origin — compensate by NOT adding offset for PDF here,
+        # since Qt's page layout already handles it.
+        # For SVG there are no margins, so offset centers the design on canvas.
+
+        painter.translate(offset_x, offset_y + self.design_info.fig_height_pt)
+
+        # Scale layout units → points, flip Y
+        painter.scale(self.design_info.scale_um_to_pt, -self.design_info.scale_um_to_pt)
+         
+        # optional: move origin again if needed
+        painter.translate(-self.design_info.bbox.left, -self.design_info.bbox.bottom)
+
 
     def draw_stipple(self,
                      painter: pya.QPainter,
