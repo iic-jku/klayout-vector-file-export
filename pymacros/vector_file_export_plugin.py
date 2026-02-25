@@ -80,6 +80,7 @@ class VectorFileExportPluginFactory(pya.PluginFactory):
             settings = VectorFileExportSettings.load()
         except Exception as e:
             print(f"ERROR: Failed to restore export settings, proceeding with defaults due to exception: {e}")
+            traceback.print_exc()
             settings = VectorFileExportSettings()
         
         settings.output_path = Path(f"{cw.cell.name}_export{settings.file_format.value}")
@@ -89,6 +90,7 @@ class VectorFileExportPluginFactory(pya.PluginFactory):
             self.dialog = VectorFileExportDialog(settings=settings, parent=mw)
         except Exception as e:
             print(f"ERROR: Failed to open vector file export dialog due to exception: {e}")
+            traceback.print_exc()
             return
         
         result = self.dialog.exec_()
@@ -99,7 +101,7 @@ class VectorFileExportPluginFactory(pya.PluginFactory):
                 FileSystemHelpers.reveal_in_file_manager(settings.output_path)
             except Exception as e:
                 print(f"ERROR: VectorFileExportPluginFactory.open_vector_file_export_dialog: Caught unhandled exception {e}")
-        
+                traceback.print_exc()
 
     def reset_menu(self):
         if Debugging.DEBUG:

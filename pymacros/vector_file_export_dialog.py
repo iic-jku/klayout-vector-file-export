@@ -20,6 +20,7 @@ import pya
 
 import os
 from pathlib import Path
+import shutil
 import traceback
 
 from klayout_plugin_utils.debugging import debug, Debugging
@@ -37,6 +38,9 @@ path_containing_this_script = os.path.realpath(os.path.dirname(__file__))
 class VectorFileExportDialog(pya.QDialog, ProgressReporter):
     def __init__(self, settings: VectorFileExportSettings, parent=None):
         super().__init__(parent)
+        
+        self.progress_dialog = None
+        
         self.setWindowTitle('Vector File Export')
         
         loader = pya.QUiLoader()
@@ -140,25 +144,38 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         
         try:
             settings = self.settings_from_ui()
-            settings.save()
         
             exporter = VectorFileExporter(layout_view=pya.LayoutView.current(),
                                           settings=settings,
                                           progress_reporter=self)
+            
+            if settings.include_stipples:
+                notfound = []
+                if not shutil.which('potrace'):
+                    notfound += ['potrace']
+                if not shutil.which('mkbitmap'):
+                    notfound += ['mkbitmap']
+                if notfound:
+                    raise Exception(f"Executable{'s' if len(notfound) >= 2 else ''} {' / '.join(notfound)}"
+                                    f" not found in PATH (required for stipple export)")
+            
+            settings.save()
+            
             exporter.export()
             self.accept()
         except ExportCancelledError as e:
             pass
         except Exception as e:
-            print("VectorFileExportDialog.on_ok caught an exception", e)
-            traceback.print_exc()
+            if self.progress_dialog is not None:
+                self.progress_dialog.cancel()
+            
             qmessagebox_critical('Error',
                                  f"Failed to export layout in vector format",
                                  f"Caught exception: <pre>{e}</pre>")
         finally:
             if self.progress_dialog is not None:
                 self.progress_dialog.close()
-            self.exportButton.setEnabled(False)        
+            self.exportButton.setEnabled(True)        
 
     def on_cancel(self):
         if Debugging.DEBUG:
@@ -203,6 +220,7 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         color_mode: ColorMode = ColorMode(chosen_color_mode)
                 
         include_background_color = self.page.include_bg_color_cb.checked
+        include_stipples = self.page.include_stipples_cb.checked
         
         font_family = self.page.font_family_cob.currentText
         
@@ -250,6 +268,7 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
             content_scaling_value=content_scaling_value,
             color_mode=color_mode,
             include_background_color=include_background_color,
+            include_stipples=include_stipples,
             font_family=font_family,
             font_size_mode=font_size_mode,
             font_size_pt=font_size_pt,
@@ -330,10 +349,11 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         self.page.figure_width_sb.setValue(design_info.fig_width_mm)
         self.page.figure_height_sb.setValue(design_info.fig_height_mm)
         self.page.scaling_sb.setValue(design_info.scaling)
-
+        
         self.page.colors_cob.setCurrentText(settings.color_mode.value)
         self.page.include_bg_color_cb.setChecked(settings.include_background_color)
-    
+        self.page.include_stipples_cb.setChecked(settings.include_stipples)
+        
         self.page.font_family_cob.setCurrentText(settings.font_family)
 
         match settings.font_size_mode:
