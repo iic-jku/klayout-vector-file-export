@@ -178,11 +178,20 @@ class VectorFileExporter:
         if Debugging.DEBUG:
             debug(f"VectorFileExporter.draw_stipple: enter")
 
-        world_trans = painter.worldTransform
-        if not world_trans.isInvertible():
-            print(f"ERROR: Failed to invert world transformation")
-            return
-        inv_world_trans = world_trans.inverted()
+        # shape_path is expected in device coordinates for SVG
+        # (already mapped in draw_polygon), or world coordinates for PDF
+        # (mapped here via world_trans).
+        match self.settings.file_format:
+            case VectorFileFormat.SVG:
+                clip_path_device = shape_path  # already in device space
+            case VectorFileFormat.PDF:
+                world_trans = painter.worldTransform
+                if not world_trans.isInvertible():
+                    print(f"ERROR: Failed to invert world transformation")
+                    return
+                clip_path_device = world_trans.map(shape_path)
+            case _:
+                raise NotImplementedError(f"Unhandled enum case {self.settings.format}")
         
         # get shape bounding rect
         bbox = shape_path.boundingRect()
@@ -290,7 +299,29 @@ class VectorFileExporter:
                 poly_path.lineTo(pya.QPointF(pt.x, pt.y))
             poly_path.closeSubpath()
             
-            painter.drawPath(poly_path)
+            match self.settings.file_format:
+                case VectorFileFormat.PDF:
+                    painter.drawPath(poly_path)
+                case VectorFileFormat.SVG:
+                    # Map to device space explicitly, never trust QSvgGenerator
+                    # to apply the world transform correctly
+
+                    world_trans = painter.worldTransform
+                    poly_path = world_trans.map(poly_path)
+                    
+                    painter.save()
+                    painter.resetTransform()
+                    # Pen must be non-cosmetic with a device-space width,
+                    # since we're drawing in device coordinates after resetTransform.
+                    # cosmetic pen_width is in µm — meaningless in device space.
+                    device_pen = pya.QPen(painter.pen().color)
+                    device_pen.setWidthF(1.0)
+                    device_pen.setCosmetic(False)
+                    painter.setPen(device_pen)                    
+                    painter.drawPath(poly_path)
+                    painter.restore()
+                case _:
+                    raise NotImplementedError(f"Unhandled enum case {self.settings.format}")
             
             #
             # draw the stipple "fill"
