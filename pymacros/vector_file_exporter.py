@@ -23,6 +23,7 @@ from enum import StrEnum
 from functools import cached_property
 import os
 from pathlib import Path
+import traceback
 from typing import *
 
 from klayout_plugin_utils.debugging import debug, Debugging
@@ -196,7 +197,6 @@ class VectorFileExporter:
         # get shape bounding rect
         bbox = shape_path.boundingRect()
         
-        clip_path_device = world_trans.map(shape_path)
         fill_rect = clip_path_device.boundingRect()
         
         STIPPLE_SCALE = 0.2  # 0.3
@@ -561,11 +561,12 @@ class VectorFileExporter:
         try:
             self.paint_layers(painter=painter, preview_mode=True)
         except ExportCancelledError as e:
+            pass
+        except Exception as e:
             if Debugging.DEBUG:
                 debug(f"VectorFileExporter.render_preview caught exception {e}")
+                traceback.print_exc()
             raise
-        except ExportCancelledError as e:
-            pass
         finally:
             painter.end()
         return image
@@ -578,10 +579,11 @@ class VectorFileExporter:
             painter.setPen(pen)
         
             self.paint_layers(painter=painter, preview_mode=False)
+        except ExportCancelledError as e:
+            pass
         except Exception as e:
             if Debugging.DEBUG:
                 debug(f"VectorFileExporter.export caught exception {e}")
-        except ExportCancelledError as e:
-            pass
+                traceback.print_exc()
         finally:
             painter.end()    

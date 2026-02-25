@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from math import ceil
 import os
 import tempfile
+import traceback
 from typing import *
 import unittest
 
@@ -233,6 +234,7 @@ class Bitmap:
             return cls(width, height, data)
         except Exception as e:
             raise ValueError(f"Invalid compact filename: {s}") from e
+            traceback.print_exc()
 
     def to_compact_filename(self) -> str:
         """Compact, reversible filename-safe string using only [0-9a-z]."""
