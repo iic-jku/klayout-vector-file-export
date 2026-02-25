@@ -21,6 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 from functools import cached_property
+import json
 import os
 from pathlib import Path
 from typing import *
@@ -222,6 +223,43 @@ class VectorFileExportSettings:
             
         settings_str = pya.AbstractMenu.pack_key_binding(self.dict())
         mw.set_config(CONFIG_KEY__VECTOR_FILE_EXPORT_SETTINGS, settings_str)
+    
+    @classmethod
+    def load_json(cls, json_path: Path) -> VectorFileExportSettings:
+        text = json_path.read_text(encoding='utf-8')
+        data = json.loads(text)
+        settings = VectorFileExportSettings.from_dict(data)
+        return settings
+    
+    def save_json(self, json_path: Path):
+        data = self.dict()
+        json_path.write_text(json.dumps(data, indent=2), encoding='utf-8')
+    
+    @classmethod
+    def from_dict(cls, d: Dict[str, str]) -> VectorFileExportSettings:
+        return VectorFileExportSettings(
+            file_format=VectorFileFormat(d['file_format']),
+            output_path=Path(d['output_path']),
+            title=d['title'],
+            page_format=int(d['page_format']),
+            page_orientation=PageOrientation(d['page_orientation']),
+            content_scaling_style=ContentScaling(d['content_scaling_style']),
+            content_scaling_value=float(d['content_scaling_value']),
+            color_mode=ColorMode(d['color_mode']),
+            include_background_color=bool(d['include_background_color']),
+            include_stipples=bool(d['include_stipples']),
+            font_family=d['font_family'],
+            font_size_mode=FontSizeMode(d['font_size_mode']),
+            font_size_pt=float(d['font_size_pt']),
+            font_size_percent_of_fig_width=float(d['font_size_percent_of_fig_width']),
+            text_mode=TextMode(d['text_mode']),
+            text_layers_filter_enabled=bool(d['text_layers_filter_enabled']),
+            text_layers=d['text_layers'],
+            geometry_reduction=GeometryReduction(d['geometry_reduction']),
+            layer_output_style=LayerOutputStyle(d['layer_output_style']),
+            layer_selection_mode=LayerSelectionMode(d['layer_selection_mode']),
+            custom_layers=d['custom_layers']
+        )
     
     def dict(self) -> Dict[str, str]:
         return {

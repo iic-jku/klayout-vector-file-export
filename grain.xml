@@ -3,7 +3,7 @@
  <name>VectorFileExportPlugin</name>
  <token/>
  <hidden>false</hidden>
- <version>0.6</version>
+ <version>0.7</version>
  <api-version/>
  <title>Vector File Export Plugin</title>
  <doc>Export layout as PDF or SVG vector file</doc>
@@ -15,7 +15,7 @@
  <depends>
   <name>KLayoutPluginUtils</name>
   <url/>
-  <version>0.16</version>
+  <version>0.17</version>
  </depends>
  <authored-time/>
  <installed-time/>

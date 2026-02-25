@@ -25,6 +25,7 @@ import traceback
 
 from klayout_plugin_utils.debugging import debug, Debugging
 from klayout_plugin_utils.file_system_helpers import FileSystemHelpers
+from klayout_plugin_utils.lru_file_helper import LRUFileHelper
 from klayout_plugin_utils.qt_helpers import qmessagebox_critical
 
 from design_info import DesignInfo
@@ -32,7 +33,11 @@ from progress_reporter import ProgressReporter
 from vector_file_export_settings import *
 from vector_file_exporter import VectorFileExporter, ExportCancelledError
 
+
 path_containing_this_script = os.path.realpath(os.path.dirname(__file__))
+
+# Config key used to persist the runset LRU list for this specific plugin.
+_RUNSET_LRU_CONFIG_KEY = "vector_file_export.lru_runsets"
 
 
 class VectorFileExportDialog(pya.QDialog, ProgressReporter):
@@ -40,6 +45,9 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         super().__init__(parent)
         
         self.progress_dialog = None
+
+        # LRU helper – reusable; the config key is plugin-specific
+        self._lru = LRUFileHelper(config_key=_RUNSET_LRU_CONFIG_KEY, max_entries=15)
         
         self.setWindowTitle('Vector File Export')
         
@@ -54,9 +62,22 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
 
         self.bottom = pya.QHBoxLayout()
         
+        self.saveButton = pya.QPushButton('Save Runset')
+        self.loadButton = pya.QPushButton('Load Runset')
+        self.lruButton = pya.QPushButton('Recent')
+        self.lruButton.setToolTip('Recently used runsets')
         self.exportButton = pya.QPushButton('Export')
         self.cancelButton = pya.QPushButton('Cancel')
-                
+        
+        self.lruMenu = pya.QMenu(self)
+        self.lruButton.setMenu(self.lruMenu)
+        
+        # Layout: [Save] [Load] [Recent…▼]  <stretch>  [Export] [Cancel]
+        
+        self.bottom.addWidget(self.saveButton)
+        self.bottom.addWidget(self.loadButton)
+        self.bottom.addWidget(self.lruButton)
+        
         self.bottom.addStretch(1)
         
         self.bottom.addWidget(self.exportButton)
@@ -68,11 +89,19 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         
         self.exportButton.clicked.connect(self.on_export)
         self.cancelButton.clicked.connect(self.on_cancel)
+        self.saveButton.clicked.connect(self.on_save_runset)
+        self.loadButton.clicked.connect(self.on_load_runset)
+        
+        # Rebuild the LRU menu every time the button is about to show its popup
+        self.lruMenu.aboutToShow.connect(self._rebuild_lru_menu)
         
         self.exportButton.setDefault(True)
         self.exportButton.setAutoDefault(True)
         self.cancelButton.setAutoDefault(False)
-        
+        self.saveButton.setAutoDefault(False)
+        self.loadButton.setAutoDefault(False)
+        self.lruButton.setAutoDefault(False)
+                
         self.page.page_format_cob.clear()
         for page_id in range(pya.QPageSize.A4.to_i(), pya.QPageSize.LastPageSize.to_i() + 1):
             if page_id == pya.QPageSize.Custom.to_i():
@@ -94,6 +123,41 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         
         self.update_ui_from_settings(settings)
 
+    def _rebuild_lru_menu(self):
+        """Populate (or refresh) the LRU popup menu."""
+        self.lruMenu.clear()
+        entries = self._lru.entries()
+
+        if entries:
+            for path in entries:
+                # Use the file name as the label, full path as tooltip
+                action = self.lruMenu.addAction(path.name)
+                action.setToolTip(str(path))
+                # Capture path in default-arg to avoid late-binding issues
+                action.triggered.connect(lambda checked=False, p=path: self._load_runset_from_path(p))
+
+            self.lruMenu.addSeparator()
+
+        clear_action = self.lruMenu.addAction('Clear List')
+        clear_action.triggered.connect(self.on_clear_lru)
+
+    def on_clear_lru(self):
+        self._lru.clear()
+
+    def _load_runset_from_path(self, path: Path):
+        """Load a runset JSON from *path* and apply it to the UI."""
+        try:
+            settings = VectorFileExportSettings.load_json(path)
+            self.update_ui_from_settings(settings)
+            self._lru.push(path)
+        except Exception as e:
+            qmessagebox_critical(
+                'Error',
+                f"Failed to load runset",
+                f"Caught exception: <pre>{e}</pre>"
+            )
+            traceback.print_exc()
+    
     @staticmethod
     def format_page_size(page_size_id: int) -> str:
         page_size = pya.QPageSize(pya.QPageSize.PageSizeId(page_size_id))
@@ -110,6 +174,81 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
             self.update_ui_from_settings(settings)    
         except Exception as e:
             print("VectorFileExportDialog.on_reset caught an exception", e)
+            traceback.print_exc()
+
+    @staticmethod
+    def _suggest_runset_filename() -> str:
+        """Return a suggested runset filename like ``TOPCELL_export.json``.
+
+        Falls back to ``export.json`` if no layout / cell is open.
+        """
+        try:
+            view = pya.LayoutView.current()
+            if view:
+                cell_name = view.active_cellview().cell.name
+                if cell_name:
+                    # Sanitise: replace characters that are problematic in filenames
+                    safe = "".join(c if c.isalnum() or c in "-_.()" else "_" for c in cell_name)
+                    return f"{safe}_export_runset.json"
+        except Exception:
+            pass
+        return "export_runset.json"
+    
+    def on_save_runset(self):
+        if Debugging.DEBUG:
+            debug("VectorFileExportDialog.on_save_runset")
+
+        try:
+            lru_entries = self._lru.entries()
+            start_dir = str(lru_entries[0].parent) if lru_entries else FileSystemHelpers.least_recent_directory()
+
+            suggested = str(Path(start_dir) / self._suggest_runset_filename())
+
+            file_path_str = pya.QFileDialog.getSaveFileName(
+                self,
+                "Save Runset",
+                suggested,
+                "Runset files (*.json);;All Files (*)"
+            )
+            if not file_path_str:
+                return
+
+            file_path = Path(file_path_str)
+            if file_path.suffix.lower() != '.json':
+                file_path = file_path.with_suffix('.json')
+
+            settings = self.settings_from_ui()
+            
+            settings.save_json(file_path)
+
+            self._lru.push(file_path)
+            FileSystemHelpers.set_least_recent_directory(file_path.parent)
+        except Exception as e:
+            qmessagebox_critical('Error', "Failed to save runset", f"Caught exception: <pre>{e}</pre>")
+            traceback.print_exc()
+        
+    def on_load_runset(self):
+        if Debugging.DEBUG:
+            debug("VectorFileExportDialog.on_load_runset")
+
+        try:
+            lru_entries = self._lru.entries()
+            start_dir = str(lru_entries[0].parent) if lru_entries else FileSystemHelpers.least_recent_directory()
+
+            file_path_str = pya.QFileDialog.getOpenFileName(
+                self,
+                "Load Runset",
+                start_dir,
+                "Runset files (*.json);;All Files (*)"
+            )
+            if not file_path_str:
+                return
+
+            file_path = Path(file_path_str)
+            self._load_runset_from_path(file_path)
+            FileSystemHelpers.set_least_recent_directory(file_path.parent)
+        except Exception as e:
+            qmessagebox_critical('Error', "Failed to load runset", f"Caught exception: <pre>{e}</pre>")
             traceback.print_exc()
 
     def begin_progress(self, maximum: int):
