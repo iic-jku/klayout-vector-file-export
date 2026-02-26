@@ -59,6 +59,7 @@ import vector_file_export_plugin
 import vector_file_export_settings
 import vector_file_export_dialog
 import vector_file_exporter
+import previous_ui_settings
 import progress_reporter
 import design_info
 import bitmap
@@ -77,6 +78,7 @@ reload(vector_file_export_plugin)
 reload(vector_file_export_settings)
 reload(vector_file_export_dialog)
 reload(vector_file_exporter)
+reload(previous_ui_settings)
 reload(progress_reporter)
 reload(design_info)
 reload(bitmap)
