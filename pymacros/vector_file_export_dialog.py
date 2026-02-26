@@ -29,6 +29,7 @@ from klayout_plugin_utils.lru_file_helper import LRUFileHelper
 from klayout_plugin_utils.qt_helpers import qmessagebox_critical
 
 from design_info import DesignInfo
+from previous_ui_settings import PreviousUISettings
 from progress_reporter import ProgressReporter
 from vector_file_export_settings import *
 from vector_file_exporter import VectorFileExporter, ExportCancelledError
@@ -298,7 +299,7 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
                     raise Exception(f"Executable{'s' if len(notfound) >= 2 else ''} {' / '.join(notfound)}"
                                     f" not found in PATH (required for stipple export)")
             
-            settings.save()
+            PreviousUISettings.save(settings)
             
             exporter.export()
             self.accept()
