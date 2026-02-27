@@ -51,7 +51,7 @@ class VectorFileExporter:
         output_path = Path(self.settings.output_path).resolve()
     
         bbox = self.design_info.bbox
-        page_size: pya.QPageSize = self.settings.page_size()
+        page_size: pya.QPageSize = self.page_size(self.settings)
 
         match self.settings.file_format:
             case VectorFileFormat.PDF:
@@ -80,7 +80,7 @@ class VectorFileExporter:
                 # Canvas = full page size (like PDF), not just the figure/design size.
                 # QSvgGenerator has no orientation concept, so we apply it manually
                 # by swapping width/height for portrait vs landscape.
-                page_size_pt = self.settings.page_size().sizePoints()
+                page_size_pt = page_size.sizePoints()
 
                 raw_w = int(self.design_info.fig_width_pt)
                 raw_h = int(self.design_info.fig_height_pt)
@@ -116,7 +116,14 @@ class VectorFileExporter:
     @property
     def pen_width(self) -> float:
         return max(self.design_info.dbu, self.design_info.um_per_pixel * 0.4)        
-
+    
+    def page_size(self, settings: VectorFileExportSettings) -> pya.QPageSize:
+        for i in range(pya.QPageSize.LastPageSize.to_i() + 1):
+            page_size = pya.QPageSize(pya.QPageSize.PageSizeId(i))
+            if page_size.name() == settings.page_format:
+                return page_size
+        raise Exception(f"Failed to obtain QPageSize for page format name '{settings.page_format}'")
+    
     def prepare_painter(self, painter: pya.QPainter):
         dbu = self.design_info.dbu
     
@@ -140,7 +147,7 @@ class VectorFileExporter:
         font.setPointSizeF(font_size_pt)
         painter.setFont(font)
         
-        page_size_pt = self.settings.page_size().sizePoints()
+        page_size_pt = self.page_size(self.settings).sizePoints()
         
         width: float
         height: float
@@ -531,7 +538,7 @@ class VectorFileExporter:
                 new_page_needed = False
 
     def render_preview(self, dpi: int) -> pya.QImage:
-        page_size_pt = self.settings.page_size().sizePoints()
+        page_size_pt = self.page_size(self.settings).sizePoints()
         px_per_pt = dpi / 72.0
         
         image = pya.QImage(int(page_size_pt.width * px_per_pt), 

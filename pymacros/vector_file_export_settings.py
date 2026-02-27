@@ -132,7 +132,7 @@ class VectorFileExportSettings:
         
         page_format_str = d.get('page_format', None)
         if page_format_str is not None:
-            settings.page_format = int(page_format_str)
+            settings.page_format = page_format_str
 
         page_orientation_str = d.get('page_orientation', None)
         if page_orientation_str is not None:
