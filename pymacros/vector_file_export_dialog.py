@@ -29,6 +29,7 @@ from klayout_plugin_utils.lru_file_helper import LRUFileHelper
 from klayout_plugin_utils.qt_helpers import qmessagebox_critical
 
 from design_info import DesignInfo
+from previous_ui_settings import PreviousUISettings
 from progress_reporter import ProgressReporter
 from vector_file_export_settings import *
 from vector_file_exporter import VectorFileExporter, ExportCancelledError
@@ -106,9 +107,9 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         for page_id in range(pya.QPageSize.A4.to_i(), pya.QPageSize.LastPageSize.to_i() + 1):
             if page_id == pya.QPageSize.Custom.to_i():
                 continue
-            
-            format_title = self.format_page_size(page_id)
-            self.page.page_format_cob.addItem(format_title, page_id)
+            name = pya.QPageSize(pya.QPageSize_PageSizeId(page_id)).name()
+            formatted_title = self.format_page_size(page_id)
+            self.page.page_format_cob.addItem(formatted_title, name)
         
         self.page.file_format_cob.currentIndexChanged.connect(self.on_file_format_changed)
         self.page.colors_cob.currentIndexChanged.connect(self.on_color_changed)
@@ -298,7 +299,7 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
                     raise Exception(f"Executable{'s' if len(notfound) >= 2 else ''} {' / '.join(notfound)}"
                                     f" not found in PATH (required for stipple export)")
             
-            settings.save()
+            PreviousUISettings.save(settings)
             
             exporter.export()
             self.accept()
@@ -460,8 +461,9 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         
         self.page.title_le.setText(settings.title)
         
-        page_format = self.format_page_size(settings.page_format)
-        idx = self.page.page_format_cob.findText(page_format)
+        # NOTE: the file format combo box title additionally includes the dimensions in the text
+        #       but the QPageSize name does not, so we need to look at the currentData()
+        idx = self.page.page_format_cob.findData(settings.page_format)
         if idx >= 0:
             self.page.page_format_cob.setCurrentIndex(idx)
         

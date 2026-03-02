@@ -179,7 +179,7 @@ class DesignInfoTests(unittest.TestCase):
             file_format=VectorFileFormat.PDF,
             output_path='out.pdf',
             title='Title',
-            page_format=pya.QPageSize.A4.to_i(),
+            page_format=pya.QPageSize.A4.name(),
             page_orientation=PageOrientation.PORTRAIT,
             content_scaling_style=ContentScaling.FIGURE_WIDTH_MM,
             content_scaling_value=127.0,  # 127mm!
@@ -206,7 +206,7 @@ class DesignInfoTests(unittest.TestCase):
             file_format=VectorFileFormat.PDF,
             output_path='out.pdf',
             title='Title',
-            page_format=pya.QPageSize.A4.to_i(),
+            page_format=pya.QPageSize.A4.name(),
             page_orientation=PageOrientation.PORTRAIT,
             content_scaling_style=ContentScaling.SCALING,
             content_scaling_value=10000.0,

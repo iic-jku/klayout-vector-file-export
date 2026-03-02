@@ -26,21 +26,10 @@ import os
 from pathlib import Path
 from typing import *
 
-import pya
-
 from klayout_plugin_utils.debugging import debug, Debugging
 from klayout_plugin_utils.str_enum_compat import StrEnum
 
 
-CONFIG_KEY__VECTOR_FILE_EXPORT_SETTINGS = 'klayout_vector_file_export_settings'
-
-#--------------------------------
-# TODO: Color / B+W
-#
-# TODO: Layer Selection
-#    Use visible layers
-#    Use all layers
-#    Custom layers
 #--------------------------------
 
 class VectorFileFormat(StrEnum):
@@ -95,7 +84,7 @@ class VectorFileExportSettings:
     file_format: VectorFileFormat = VectorFileFormat.PDF
     output_path: str | Path = ""
     title: str = "KLayout Vector Export"
-    page_format: int = pya.QPageSize.A4.to_i()
+    page_format: str = "A4"
     page_orientation: PageOrientation = PageOrientation.PORTRAIT
     content_scaling_style: ContentScaling = ContentScaling.FIGURE_WIDTH_MM
     content_scaling_value: float = 120.0
@@ -114,116 +103,6 @@ class VectorFileExportSettings:
     layer_selection_mode: LayerSelectionMode = LayerSelectionMode.ALL_VISIBLE_LAYERS
     custom_layers: str = ''   # only relevant for LayerSelectionMode.CUSTOM_LAYER_LIST
     
-    def page_size(self) -> pya.QPageSize:
-        return pya.QPageSize(pya.QPageSize.PageSizeId(self.page_format))
-    
-    @classmethod
-    def load(cls) -> VectorFileExportSettings:
-        if Debugging.DEBUG:
-            debug("VectorFileExportSettings.load")
-            
-        mw = pya.MainWindow.instance()
-        settings_str = mw.get_config(CONFIG_KEY__VECTOR_FILE_EXPORT_SETTINGS)
-
-        settings = VectorFileExportSettings()        
-        if settings_str is not None:
-            d = pya.AbstractMenu.unpack_key_binding(settings_str)
-            
-            file_format_str = d.get('file_format', None)
-            if file_format_str is not None:
-                settings.file_format = VectorFileFormat(file_format_str)
-            
-            output_path_str = d.get('output_path', None)
-            if output_path_str is not None:
-                settings.output_path = Path(output_path_str)
-                
-            title_str = d.get('title', None)
-            if title_str is not None:
-                settings.title = title_str
-            
-            page_format_str = d.get('page_format', None)
-            if page_format_str is not None:
-                settings.page_format = int(page_format_str)
-
-            page_orientation_str = d.get('page_orientation', None)
-            if page_orientation_str is not None:
-                settings.page_orientation = PageOrientation(page_orientation_str)
-                
-            content_scaling_style_str = d.get('content_scaling_style', None)
-            if content_scaling_style_str is not None:
-                settings.content_scaling_style = ContentScaling(content_scaling_style_str)
-
-            content_scaling_value_str = d.get('content_scaling_value', None)
-            if content_scaling_value_str is not None:
-                settings.content_scaling_value = float(content_scaling_value_str)
-
-            color_mode_str = d.get('color_mode', None)
-            if color_mode_str is not None:
-                settings.color_mode = ColorMode(color_mode_str)
-
-            include_background_color_str = d.get('include_background_color', None)
-            if include_background_color_str is not None:
-                settings.include_background_color = bool(int(include_background_color_str))
-
-            include_stipples_str = d.get('include_stipples', None)
-            if include_stipples_str is not None:
-                settings.include_stipples = bool(int(include_stipples_str))
-
-            font_family_str = d.get('font_family', None)
-            if font_family_str is not None:
-                settings.font_family = font_family_str
-
-            font_size_mode_str = d.get('font_size_mode', None)
-            if font_size_mode_str is not None:
-                settings.font_size_mode = FontSizeMode(font_size_mode_str)
-
-            font_size_pt_str = d.get('font_size_pt', None)
-            if font_size_pt_str is not None:
-                settings.font_size_pt = float(font_size_pt_str)
-
-            font_size_percent_of_fig_width_str = d.get('font_size_percent_of_fig_width', None)
-            if font_size_percent_of_fig_width_str is not None:
-                settings.font_size_percent_of_fig_width = float(font_size_percent_of_fig_width_str)
-
-            text_mode_str = d.get('text_mode', None)
-            if text_mode_str is not None:
-                settings.text_mode = TextMode(text_mode_str)
-
-            text_layers_filter_enabled_str = d.get('text_layers_filter_enabled', None)
-            if text_layers_filter_enabled_str is not None:
-                settings.text_layers_filter_enabled = bool(int(text_layers_filter_enabled_str))
-
-            text_layers_str = d.get('text_layers', None)
-            if text_layers_str is not None:
-                settings.text_layers = text_layers_str
-
-            geometry_reduction_str = d.get('geometry_reduction', None)
-            if geometry_reduction_str is not None:
-                settings.geometry_reduction = GeometryReduction(geometry_reduction_str)
-
-            layer_output_style_str = d.get('layer_output_style', None)
-            if layer_output_style_str is not None:
-                settings.layer_output_style = LayerOutputStyle(layer_output_style_str)
-
-            layer_selection_mode_str = d.get('layer_selection_mode', None)
-            if layer_selection_mode_str is not None:
-                settings.layer_selection_mode = LayerSelectionMode(layer_selection_mode_str)
-
-            custom_layers_str = d.get('custom_layers', None)
-            if custom_layers_str is not None:
-                settings.custom_layers = custom_layers_str
-
-        return settings
-                
-    def save(self):
-        if Debugging.DEBUG:
-            debug("VectorFileExportSettings.save")
-            
-        mw = pya.MainWindow.instance()
-            
-        settings_str = pya.AbstractMenu.pack_key_binding(self.dict())
-        mw.set_config(CONFIG_KEY__VECTOR_FILE_EXPORT_SETTINGS, settings_str)
-    
     @classmethod
     def load_json(cls, json_path: Path) -> VectorFileExportSettings:
         text = json_path.read_text(encoding='utf-8')
@@ -237,29 +116,93 @@ class VectorFileExportSettings:
     
     @classmethod
     def from_dict(cls, d: Dict[str, str]) -> VectorFileExportSettings:
-        return VectorFileExportSettings(
-            file_format=VectorFileFormat(d['file_format']),
-            output_path=Path(d['output_path']),
-            title=d['title'],
-            page_format=int(d['page_format']),
-            page_orientation=PageOrientation(d['page_orientation']),
-            content_scaling_style=ContentScaling(d['content_scaling_style']),
-            content_scaling_value=float(d['content_scaling_value']),
-            color_mode=ColorMode(d['color_mode']),
-            include_background_color=bool(d['include_background_color']),
-            include_stipples=bool(d['include_stipples']),
-            font_family=d['font_family'],
-            font_size_mode=FontSizeMode(d['font_size_mode']),
-            font_size_pt=float(d['font_size_pt']),
-            font_size_percent_of_fig_width=float(d['font_size_percent_of_fig_width']),
-            text_mode=TextMode(d['text_mode']),
-            text_layers_filter_enabled=bool(d['text_layers_filter_enabled']),
-            text_layers=d['text_layers'],
-            geometry_reduction=GeometryReduction(d['geometry_reduction']),
-            layer_output_style=LayerOutputStyle(d['layer_output_style']),
-            layer_selection_mode=LayerSelectionMode(d['layer_selection_mode']),
-            custom_layers=d['custom_layers']
-        )
+        settings = VectorFileExportSettings()        
+    
+        file_format_str = d.get('file_format', None)
+        if file_format_str is not None:
+            settings.file_format = VectorFileFormat(file_format_str)
+        
+        output_path_str = d.get('output_path', None)
+        if output_path_str is not None:
+            settings.output_path = Path(output_path_str)
+            
+        title_str = d.get('title', None)
+        if title_str is not None:
+            settings.title = title_str
+        
+        page_format_str = d.get('page_format', None)
+        if page_format_str is not None:
+            settings.page_format = page_format_str
+
+        page_orientation_str = d.get('page_orientation', None)
+        if page_orientation_str is not None:
+            settings.page_orientation = PageOrientation(page_orientation_str)
+            
+        content_scaling_style_str = d.get('content_scaling_style', None)
+        if content_scaling_style_str is not None:
+            settings.content_scaling_style = ContentScaling(content_scaling_style_str)
+
+        content_scaling_value_str = d.get('content_scaling_value', None)
+        if content_scaling_value_str is not None:
+            settings.content_scaling_value = float(content_scaling_value_str)
+
+        color_mode_str = d.get('color_mode', None)
+        if color_mode_str is not None:
+            settings.color_mode = ColorMode(color_mode_str)
+
+        include_background_color_str = d.get('include_background_color', None)
+        if include_background_color_str is not None:
+            settings.include_background_color = bool(int(include_background_color_str))
+
+        include_stipples_str = d.get('include_stipples', None)
+        if include_stipples_str is not None:
+            settings.include_stipples = bool(int(include_stipples_str))
+
+        font_family_str = d.get('font_family', None)
+        if font_family_str is not None:
+            settings.font_family = font_family_str
+
+        font_size_mode_str = d.get('font_size_mode', None)
+        if font_size_mode_str is not None:
+            settings.font_size_mode = FontSizeMode(font_size_mode_str)
+
+        font_size_pt_str = d.get('font_size_pt', None)
+        if font_size_pt_str is not None:
+            settings.font_size_pt = float(font_size_pt_str)
+
+        font_size_percent_of_fig_width_str = d.get('font_size_percent_of_fig_width', None)
+        if font_size_percent_of_fig_width_str is not None:
+            settings.font_size_percent_of_fig_width = float(font_size_percent_of_fig_width_str)
+
+        text_mode_str = d.get('text_mode', None)
+        if text_mode_str is not None:
+            settings.text_mode = TextMode(text_mode_str)
+
+        text_layers_filter_enabled_str = d.get('text_layers_filter_enabled', None)
+        if text_layers_filter_enabled_str is not None:
+            settings.text_layers_filter_enabled = bool(int(text_layers_filter_enabled_str))
+
+        text_layers_str = d.get('text_layers', None)
+        if text_layers_str is not None:
+            settings.text_layers = text_layers_str
+
+        geometry_reduction_str = d.get('geometry_reduction', None)
+        if geometry_reduction_str is not None:
+            settings.geometry_reduction = GeometryReduction(geometry_reduction_str)
+
+        layer_output_style_str = d.get('layer_output_style', None)
+        if layer_output_style_str is not None:
+            settings.layer_output_style = LayerOutputStyle(layer_output_style_str)
+
+        layer_selection_mode_str = d.get('layer_selection_mode', None)
+        if layer_selection_mode_str is not None:
+            settings.layer_selection_mode = LayerSelectionMode(layer_selection_mode_str)
+
+        custom_layers_str = d.get('custom_layers', None)
+        if custom_layers_str is not None:
+            settings.custom_layers = custom_layers_str
+
+        return settings
     
     def dict(self) -> Dict[str, str]:
         return {

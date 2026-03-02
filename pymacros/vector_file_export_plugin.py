@@ -31,6 +31,7 @@ from klayout_plugin_utils.file_system_helpers import FileSystemHelpers
 from klayout_plugin_utils.qt_helpers import qmessagebox_critical
 from klayout_plugin_utils.str_enum_compat import StrEnum
 
+from previous_ui_settings import PreviousUISettings, CONFIG_KEY__VECTOR_FILE_EXPORT_SETTINGS
 from vector_file_export_dialog import VectorFileExportDialog
 from vector_file_export_settings import *
 
@@ -75,14 +76,7 @@ class VectorFileExportPluginFactory(pya.PluginFactory):
             qmessagebox_critical('Error', 'Export failed', 'No layout open to export')
             return
 
-        settings: VectorFileExportSettings
-        try:
-            settings = VectorFileExportSettings.load()
-        except Exception as e:
-            print(f"ERROR: Failed to restore export settings, proceeding with defaults due to exception: {e}")
-            traceback.print_exc()
-            settings = VectorFileExportSettings()
-        
+        settings = PreviousUISettings.load()
         settings.output_path = Path(f"{cw.cell.name}_export{settings.file_format.value}")
 
         mw = pya.MainWindow.instance()
