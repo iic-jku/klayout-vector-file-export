@@ -72,7 +72,7 @@ def build_parser() -> argparse.ArgumentParser:
     group_io.add_argument(
         '-i',
         '--in',
-        dest='put_path',
+        dest='input_path',
         type=Path,
         help='Output file path (e.g. /tmp/export.pdf)',
     )
