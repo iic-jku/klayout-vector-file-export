@@ -86,6 +86,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     
     group_io.add_argument(
+        '-t', '--tech', 
+        dest='technology',
+        type=str,
+        help="Techology name (as defined in KLayout, e.g. sg13g2, sky130, gf180mcu)",
+    )
+    
+    group_io.add_argument(
         '--format', dest='file_format',
         type=VectorFileFormat,
         choices=list(VectorFileFormat),
