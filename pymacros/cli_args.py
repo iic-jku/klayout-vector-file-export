@@ -74,7 +74,7 @@ def build_parser() -> argparse.ArgumentParser:
         '--in',
         dest='input_path',
         type=Path,
-        help='Output file path (e.g. /tmp/export.pdf)',
+        help='Input layout file path (e.g. ~/inverter.gds)',
     )
     
     group_io.add_argument(
