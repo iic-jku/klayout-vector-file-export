@@ -26,7 +26,10 @@ import os
 from pathlib import Path
 from typing import *
 
-from klayout_plugin_utils.debugging import debug, Debugging
+#
+# NOTE: as this file is used from klayout-vector-file-export-cli,
+#       no dependency on pya is allowed!
+#
 from klayout_plugin_utils.str_enum_compat import StrEnum
 
 

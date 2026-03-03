@@ -51,7 +51,10 @@ PROGRAM_NAME = 'klayout-vector-export'
 __version__ = '0.1'   # TODO: parse from grain.xml
 
 
-from klayout_plugin_utils.debugging import debug, Debugging
+#
+# NOTE: as this file is used from klayout-vector-file-export-cli,
+#       no dependency on pya is allowed!
+#
 from vector_file_export_settings import *
 
 def build_parser() -> argparse.ArgumentParser:
