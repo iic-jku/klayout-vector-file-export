@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import StrEnum
 from functools import cached_property
 import json
 import os
@@ -30,7 +29,7 @@ from typing import *
 # NOTE: as this file is used from klayout-vector-file-export-cli,
 #       no dependency on pya is allowed!
 #
-from klayout_plugin_utils.str_enum_compat import StrEnum
+from klayout_plugin_utils.str_enum_compat import StrEnum, DualStrEnum
 
 
 #--------------------------------
@@ -55,10 +54,10 @@ class ContentScaling(StrEnum):
     SCALING = 'scaling'
 
 
-class ColorMode(StrEnum):
-    BLACK_AND_WHITE = 'Black & White'
-    GREYSCALE = 'Greyscale'
-    COLOR = 'Color'
+class ColorMode(DualStrEnum):   # 
+    BLACK_AND_WHITE = 'black_and_white', 'Black & White'
+    GREYSCALE = 'greyscale', 'Greyscale'
+    COLOR = 'color', 'Color'
 
 
 class FontSizeMode(StrEnum):
@@ -151,8 +150,13 @@ class VectorFileExportSettings:
 
         color_mode_str = d.get('color_mode', None)
         if color_mode_str is not None:
-            settings.color_mode = ColorMode(color_mode_str)
-
+            try:
+                settings.color_mode = ColorMode(color_mode_str)
+            except ValueError:
+                LEGACY_COLOR_MODE = {m.ui_label: m for m in ColorMode}
+                if color_mode_str in LEGACY_COLOR_MODE:
+                    settings.color_mode = LEGACY_COLOR_MODE[color_mode_str]
+        
         include_background_color_str = d.get('include_background_color', None)
         if include_background_color_str is not None:
             settings.include_background_color = bool(int(include_background_color_str))

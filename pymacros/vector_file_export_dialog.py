@@ -111,6 +111,10 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
             formatted_title = self.format_page_size(page_id)
             self.page.page_format_cob.addItem(formatted_title, name)
         
+        self.page.colors_cob.clear()
+        for mode in ColorMode:
+            self.page.colors_cob.addItem(mode.ui_label, mode.value)
+        
         self.page.file_format_cob.currentIndexChanged.connect(self.on_file_format_changed)
         self.page.colors_cob.currentIndexChanged.connect(self.on_color_changed)
         self.page.browse_save_path_pb.clicked.connect(self.on_browse_save_path)
@@ -356,7 +360,7 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
             content_scaling_style = ContentScaling.SCALING
             content_scaling_value = self.page.scaling_sb.value
 
-        chosen_color_mode = self.page.colors_cob.currentText
+        chosen_color_mode = self.page.colors_cob.currentData()
         color_mode: ColorMode = ColorMode(chosen_color_mode)
                 
         include_background_color = self.page.include_bg_color_cb.checked
@@ -491,7 +495,7 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         self.page.figure_height_sb.setValue(design_info.fig_height_mm)
         self.page.scaling_sb.setValue(design_info.scaling)
         
-        self.page.colors_cob.setCurrentText(settings.color_mode.value)
+        self.page.colors_cob.setCurrentText(settings.color_mode.ui_label)
         self.page.include_bg_color_cb.setChecked(settings.include_background_color)
         self.page.include_stipples_cb.setChecked(settings.include_stipples)
         
