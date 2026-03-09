@@ -592,5 +592,6 @@ class VectorFileExporter:
             if Debugging.DEBUG:
                 debug(f"VectorFileExporter.export caught exception {e}")
                 traceback.print_exc()
+            raise
         finally:
             painter.end()    
