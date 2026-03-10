@@ -107,7 +107,15 @@ def build_parser() -> argparse.ArgumentParser:
         type=str,
         help='Document title embedded in the output file',
     )
-
+    
+    group_io.add_argument(
+        '--keep-json',
+        dest='keep_json',
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help='Keep JSON file generated for the effective settings'
+    )
+    
     # --- Page layout ---
     page_group = main_parser.add_argument_group('page layout')
     page_group.add_argument(
