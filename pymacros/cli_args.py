@@ -142,7 +142,7 @@ def build_parser() -> argparse.ArgumentParser:
     color_group.add_argument(
         '--color-mode',
         type=ColorMode,
-        choices=list(ColorMode),
+        choices=list(ColorMode)
     )
     color_group.add_argument(
         '--background', dest='include_background_color',
@@ -179,10 +179,13 @@ def build_parser() -> argparse.ArgumentParser:
         metavar='PCT',
         help='Font size as %% of figure width (used when --font-size-mode=percent_of_fig_width)',
     )
+    
+    allowed_text_mode_choices = [m for m in list(TextMode) if m.value != 'all_visible']
+    
     text_group.add_argument(
         '--text-mode',
         type=TextMode,
-        choices=list(TextMode),
+        choices=allowed_text_mode_choices,
     )
     text_group.add_argument(
         '--text-layers-filter',
@@ -206,22 +209,28 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     # --- Layer selection ---
-    layer_group = main_parser.add_argument_group('layer selection')
+    layer_group = main_parser.add_argument_group('layer selection (Shapes and Instances)')
     layer_group.add_argument(
         '--layer-output-style',
         type=LayerOutputStyle,
         choices=list(LayerOutputStyle),
     )
+    
+    allowed_layers_selection_choices = [m for m in list(LayerSelectionMode) if m.value != 'all_visible_layers']
+        
     layer_group.add_argument(
-        '--layer-selection-mode',
+        '--layer-selection',
+        dest='layer_selection_mode',
         type=LayerSelectionMode,
-        choices=list(LayerSelectionMode),
+        choices=allowed_layers_selection_choices,
     )
+    
     layer_group.add_argument(
         '--custom-layers',
+        dest='custom_layers',
         type=str,
         metavar='LAYER_SPEC',
-        help='Layer spec list used when --layer-selection-mode=custom_layer_list',
+        help='Layer spec list',
     )
 
     # --- Settings file (load/save) ---
@@ -259,16 +268,26 @@ def args_to_settings(args: argparse.Namespace) -> VectorFileExportSettings:
     for dest, value in vars(args).items():
         if dest in field_names and value is not None:
             setattr(settings, dest, value)
+        
+    if settings.layer_selection_mode == LayerSelectionMode.ALL_VISIBLE:
+        raise ValueError(f"WARNING: Runset file provided contains layer selection of 'All Visible'.\n\n"
+                         f"\tThis setting only works in interactive GUI mode.\n"
+                         f"\tPlease override this setting using the arguments --layer-selection='custom_layer_list' --custom_layers")
 
+    if settings.text_mode == TextMode.ALL_VISIBLE:
+        raise ValueError(f"WARNING: Runset file provided contains text mode of 'All Visible'.\n\n"
+                         f"\tThis setting only works in interactive GUI mode.\n"
+                         f"\tPlease override this setting using the arguments --text-mode='all' --text-layers")
+    
     return settings
 
 
 def validate_settings(settings: VectorFileExportSettings) -> None:
     """Raise ValueError for cross-field constraints that argparse alone can't catch."""
-    if settings.layer_selection_mode == LayerSelectionMode.CUSTOM_LAYER_LIST:
+    if settings.layer_selection_mode == LayerSelectionMode.CUSTOM_LIST:
         if not settings.custom_layers.strip():
             raise ValueError(
-                "--custom-layers must not be empty when "
+                "--layers must not be empty when "
                 "--layer-selection-mode=custom_layer_list"
             )
     if settings.text_layers_filter_enabled and not settings.text_layers.strip():
