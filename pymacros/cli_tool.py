@@ -77,6 +77,8 @@ def main():
 
     settings = VectorFileExportSettings.load_json(settings_json_path)
 
+    print(f"Settings: {settings}")
+
     lv = pya.LayoutView()
     lv.load_layout(str(input_layout_path), technology)
 
