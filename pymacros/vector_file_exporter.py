@@ -405,11 +405,11 @@ class VectorFileExporter:
                 
         new_page_needed = False
         
-        num_layers = len(self.design_info.layer_indexes)
+        num_layers = len(self.design_info.all_layer_indexes)
         exported_layers = 0
         if self.progress_reporter is not None:
             self.progress_reporter.begin_progress(maximum=num_layers)
-            
+        
         max_preview_shapes = 1000
         if preview_mode:
             painter.drawRect(pya.QRectF(bbox.left, bbox.bottom, bbox.width(), bbox.height()))
@@ -423,12 +423,18 @@ class VectorFileExporter:
                 case ColorMode.COLOR:
                     self.draw_background(painter)
         
+        layer_properties_by_layer_index = {lp.layer_index(): lp for lp in self.design_info.layout_view.each_layer()}
+        
         def is_valid_text(lyr_idx, iter, shape) -> bool:
             match self.settings.text_mode:
                 case TextMode.NONE:
                     return False
+                case TextMode.ALL:
+                    pass  # honor filter below
                 case TextMode.ALL_VISIBLE:
-                    pass
+                    lp = layer_properties_by_layer_index[lyr]
+                    if not lp.visible:
+                        return False
                 case TextMode.ONLY_TOP_CELL:
                     if sh.cell != top_cell:
                         return False
@@ -439,14 +445,27 @@ class VectorFileExporter:
                 return lyr_idx in self.design_info.text_filter_layers_indexes
             
             return True
-            
-        layer_properties_by_layer_index = {lp.layer_index(): lp for lp in self.design_info.layout_view.each_layer()}
+        
+        def is_valid_polygon_layer(lp: pya.LayerInfo) -> bool:
+            match self.settings.layer_selection_mode:
+                case LayerSelectionMode.NONE:
+                    return False
+                case LayerSelectionMode.ALL:
+                    return True
+                case LayerSelectionMode.ALL_VISIBLE:
+                    lp = layer_properties_by_layer_index[lyr]
+                    return lp.visible
+                case LayerSelectionMode.CUSTOM_LIST:
+                    return lp.layer_index() in self.design_info.custom_layers_indexes
+                case _:
+                    raise NotImplementedError(f"Unhandled enum case {self.settings.layer_selection_mode}")
         
         drawn_shapes = 0
-        for lyr in self.design_info.layer_indexes:
+        for lyr in self.design_info.all_layer_indexes:
             found_shapes_on_layer = False
 
             lp = layer_properties_by_layer_index[lyr]
+            valid_polygon_layer = is_valid_polygon_layer(lp)
             
             if self.settings.color_mode != ColorMode.BLACK_AND_WHITE:
                 width_f = painter.pen().widthF
@@ -472,7 +491,18 @@ class VectorFileExporter:
                         painter.setPen(pen)
             
             stipple_panel: Optional[StipplePanel] = None
-            if self.settings.include_stipples:
+            def prepare_stipple_panel():
+                if not self.settings.include_stipples:
+                    return
+
+                if not valid_polygon_layer:
+                    return
+
+                nonlocal stipple_panel
+                    
+                if stipple_panel is not None:
+                    return  # already prepared
+                    
                 stipple_index = lp.eff_dither_pattern()
                 stipple_str = self.design_info.layout_view.get_stipple(stipple_index)
                 stipple = Stipple.from_klayout_string(stipple_str)
@@ -513,13 +543,17 @@ class VectorFileExporter:
                                 self.draw_background(painter)
                 
                 if not sh.is_text() or is_valid_text(lyr, iter, sh):
-                    found_shapes = self.draw_shape(painter, sh, iter.dtrans(), stipple_panel)
-                    found_shapes_on_layer = found_shapes_on_layer or found_shapes
+                    if not sh.is_text():  # not required for text
+                        prepare_stipple_panel()
                     
-                    if preview_mode and found_shapes:
-                        drawn_shapes += 1
-                        if drawn_shapes >= max_preview_shapes:
-                            return
+                    if sh.is_text() or valid_polygon_layer:
+                        found_shapes = self.draw_shape(painter, sh, iter.dtrans(), stipple_panel)
+                        found_shapes_on_layer = found_shapes_on_layer or found_shapes
+                        
+                        if preview_mode and found_shapes:
+                            drawn_shapes += 1
+                            if drawn_shapes >= max_preview_shapes:
+                                return
                 
                 iter.next()
                 
@@ -592,5 +626,6 @@ class VectorFileExporter:
             if Debugging.DEBUG:
                 debug(f"VectorFileExporter.export caught exception {e}")
                 traceback.print_exc()
+            raise
         finally:
             painter.end()    
