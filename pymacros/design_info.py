@@ -23,6 +23,7 @@ import unittest
 
 import pya
 
+from klayout_plugin_utils.debugging import debug, Debugging
 from klayout_plugin_utils.layer_list_string import LayerList
 
 from vector_file_export_settings import *
@@ -58,7 +59,7 @@ class DesignInfo:
         )
     
     @cached_property
-    def all_layer_indexes(self) -> List[pya.LayerProperties]:
+    def all_layer_indexes(self) -> List[int]:
         idxs = []
         for lref in self.layout_view.each_layer():
             if lref.valid and lref.layer_index() != -1:
@@ -71,15 +72,19 @@ class DesignInfo:
         layer_list_parse_result = LayerList.parse_layer_list_string(layer_list)
         if len(layer_list_parse_result.errors) == 0:
             for lp in self.layout_view.each_layer():
-                if layer_list_parse_result.result.contains(lp.source_layer, lp.source_datatype):
-                    print(f"Found layer {lp.source_layer}/{lp.source_datatype} (index {lp.layer_index()}), in {topic} string list '{layer_list}'")
+                if not lp.valid or lp.layer_index() == -1:
+                    continue
+                
+                if layer_list_parse_result.result.contains(lp):
+                    if Debugging.DEBUG:
+                        debug(f"Found layer {lp.source_layer}/{lp.source_datatype} (index {lp.layer_index()}), in {topic} string list '{layer_list}'")
                     layer_indexes.append(lp.layer_index())
         else:
             raise ValueError(f"ERROR: failed to parse {topic} {self.settings.custom_layers} due to errors:\n{layer_list_parse_result.errors}")
             layer_indexes = []
         
         if len(layer_indexes) == 0:
-            print(f"No layer indexes found for topic '{topic}', layer list string '{layer_list}', parse result: {layer_list_parse_result}")
+            debug(f"No layer indexes found for topic '{topic}', layer list string '{layer_list}', parse result: {layer_list_parse_result}")
             
         return layer_indexes
     
