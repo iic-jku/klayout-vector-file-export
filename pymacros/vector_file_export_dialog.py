@@ -115,13 +115,20 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         for mode in ColorMode:
             self.page.colors_cob.addItem(mode.ui_label, mode.value)
         
+        self.page.texts_cob.clear()
+        for mode in TextMode:
+            self.page.texts_cob.addItem(mode.ui_label, mode.value)
+        
+        self.page.layers_cob.clear()
+        for mode in LayerSelectionMode:
+            self.page.layers_cob.addItem(mode.ui_label, mode.value)
+        
         self.page.file_format_cob.currentIndexChanged.connect(self.on_file_format_changed)
         self.page.colors_cob.currentIndexChanged.connect(self.on_color_changed)
         self.page.browse_save_path_pb.clicked.connect(self.on_browse_save_path)
         self.page.figure_width_sb.valueChanged.connect(self.on_figure_width_changed)
         self.page.figure_height_sb.valueChanged.connect(self.on_figure_height_changed)
         self.page.scaling_sb.valueChanged.connect(self.on_scaling_value_changed)
-        self.page.custom_layers_le.textEdited.connect(self.on_custom_layers_changed)
 
         # self.scene = pya.QGraphicsScene(self)
         # self.page.preview_gv.setScene(self.scene)        
@@ -379,26 +386,14 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         font_size_pt = self.page.font_size_pt_sb.value
         font_size_percent_of_fig_width = self.page.font_size_relative_sb.value
         
-        text_mode: TextMode
-        chosen_text_mode = self.page.texts_cob.currentText
-        match chosen_text_mode:
-            case 'None': 
-                text_mode = TextMode.NONE
-            case 'All Visible':
-                text_mode = TextMode.ALL_VISIBLE
-            case 'Only Of Top Cell':
-                 text_mode = TextMode.ONLY_TOP_CELL
-            case _:
-                raise NotImplementedError(f"Unhandled text mode {chosen_text_mod}")
+        chosen_text_mode = self.page.texts_cob.currentData()
+        text_mode: TextMode = TextMode(chosen_text_mode)
         
         text_layers_filter_enabled = self.page.text_layers_filter_enabled_cb.checked
         text_layers = self.page.text_layers_filter_le.text
 
-        layer_selection_mode: LayerSelectionMode
-        if self.page.all_visible_layers_rb.checked:
-            layer_selection_mode = LayerSelectionMode.ALL_VISIBLE_LAYERS
-        elif self.page.custom_layer_selection_rb.checked:
-            layer_selection_mode = LayerSelectionMode.CUSTOM_LAYER_LIST
+        chosen_layer_mode = self.page.layers_cob.currentData()
+        layer_selection_mode: LayerSelectionMode = LayerSelectionMode(chosen_layer_mode)
 
         custom_layers = self.page.custom_layers_le.text.strip()
         
@@ -513,32 +508,11 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         
         self.page.font_size_relative_sb.setValue(settings.font_size_percent_of_fig_width)
 
-        text_mode_index: int
-        match settings.text_mode:
-            case TextMode.NONE:
-                text_mode_index = 0
-            case TextMode.ALL_VISIBLE:
-                text_mode_index = 1
-            case TextMode.ONLY_TOP_CELL:
-                text_mode_index = 2
-            case _:
-                raise NotImplementedError(f"Unhandled enum case {settings.text_mode}")
-        self.page.texts_cob.setCurrentIndex(text_mode_index)
-        
+        self.page.texts_cob.setCurrentText(settings.text_mode.ui_label)
         self.page.text_layers_filter_enabled_cb.setChecked(settings.text_layers_filter_enabled)
-        
         self.page.text_layers_filter_le.setText(settings.text_layers)
         
-        match settings.layer_selection_mode:
-            case LayerSelectionMode.ALL_VISIBLE_LAYERS:
-                self.page.all_visible_layers_rb.setChecked(True)
-                self.page.custom_layer_selection_rb.setChecked(False)
-            case LayerSelectionMode.CUSTOM_LAYER_LIST:
-                self.page.all_visible_layers_rb.setChecked(False)
-                self.page.custom_layer_selection_rb.setChecked(True)
-            case _:
-                raise NotImplementedError(f"Unhandled enum case {settings.layer_selection_mode}")            
-        
+        self.page.layers_cob.setCurrentText(settings.layer_selection_mode.ui_label)        
         self.page.custom_layers_le.setText(settings.custom_layers)
         
         self.page.bounding_box_lb.setText(f"{design_info.width_um:.3f} µm x {design_info.height_um:.3f} µm")
@@ -639,10 +613,7 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
     
     def on_color_changed(self):
         self.include_bg_color_cb.setEnabled(self.colors_cob.currentText == 'Color')
-    
-    def on_custom_layers_changed(self):
-        self.page.custom_layer_selection_rb.setChecked(True)
-    
+        
     def on_browse_save_path(self):
         if Debugging.DEBUG:
             debug("VectorFileExportDialog.on_browse_save_path")
