@@ -82,11 +82,13 @@ def main():
 
     tech = pya.Technology.technology_by_name(technology)
 
-    lyp_path = tech.eff_path("layer_properties.lyp")
+    lyp_path = tech.eff_layer_properties_file()
+    print(f"Layer Properties File: {lyp_path}")
     if lyp_path and Path(lyp_path).exists():
         lv.load_layer_props(lyp_path)
     else:
-        lv.add_missing_layers()   # fallback: auto-create entries without colors
+        print(f"WARNING: layer properties file fould not be found at {lyp_path}")
+    lv.add_missing_layers()   # fallback: auto-create entries without colors
 
     lv.max_hier()
     
