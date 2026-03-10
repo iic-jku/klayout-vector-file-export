@@ -75,7 +75,7 @@ class DesignInfo:
                     print(f"Found layer {lp.source_layer}/{lp.source_datatype} (index {lp.layer_index()}), in {topic} string list '{layer_list}'")
                     layer_indexes.append(lp.layer_index())
         else:
-            print(f"ERROR: failed to parse {topic} {self.settings.custom_layers} due to errors: {layer_list_parse_result.errors}")
+            raise ValueError(f"ERROR: failed to parse {topic} {self.settings.custom_layers} due to errors:\n{layer_list_parse_result.errors}")
             layer_indexes = []
         
         if len(layer_indexes) == 0:
