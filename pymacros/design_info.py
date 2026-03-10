@@ -38,7 +38,7 @@ class DesignInfo:
 
     bbox: pya.DBox    
     dbu: float
-    layer_indexes: List[int]
+    
     settings: VectorFileExportSettings
     
     @classmethod
@@ -46,57 +46,50 @@ class DesignInfo:
                         layout_view: pya.LayoutView,
                         settings: VectorFileExportSettings):
         cellview = layout_view.active_cellview()
-        cell = cellview.cell             
+        cell = cellview.cell
         layout = cell.layout()
-        
-        layer_indexes: List[int]
-        match settings.layer_selection_mode:
-            case LayerSelectionMode.ALL_VISIBLE_LAYERS:
-                layer_indexes = cls.visible_layer_indexes(layout_view)
-            case LayerSelectionMode.CUSTOM_LAYER_LIST:
-                layer_list_parse_result = LayerList.parse_layer_list_string(settings.custom_layers)
-                if len(layer_list_parse_result.errors) == 0:
-                    layer_indexes = [layout.find_layer(l) for l in layer_list_parse_result.result.layers]
-                else: 
-                    print(f"ERROR: failed to parse layer list {settings.custom_layers} due to errors: {layer_list_parse_result.errors}")
-                    layer_indexes = visible_layer_indexes()
-            case _:
-                raise NotImplementedError(f"Unhandled enum case {settings.layer_selection_mode}")            
-        
+
         return DesignInfo(
             layout_view=layout_view,
             cell=cell,
             bbox=cell.dbbox(),
             dbu=layout.dbu,
-            layer_indexes=layer_indexes,
             settings=settings
         )
-
-    @staticmethod
-    def visible_layer_indexes(layout_view: pya.LayoutView) -> List[int]:
+    
+    @cached_property
+    def all_layer_indexes(self) -> List[pya.LayerProperties]:
         idxs = []
-        for lref in layout_view.each_layer():
-            if lref.visible and lref.valid:
-                if lref.layer_index() == -1:  # hidden by the user
-                    continue
+        for lref in self.layout_view.each_layer():
+            if lref.valid and lref.layer_index() != -1:
                 idxs.append(lref.layer_index())
         return idxs
-
+    
+    def _get_layer_indexes(self, topic: str, layer_list: str) -> List[int]:
+        layer_indexes: List[int] = []
+        
+        layer_list_parse_result = LayerList.parse_layer_list_string(layer_list)
+        if len(layer_list_parse_result.errors) == 0:
+            for lp in self.layout_view.each_layer():
+                if layer_list_parse_result.result.contains(lp.source_layer, lp.source_datatype):
+                    print(f"Found layer {lp.source_layer}/{lp.source_datatype} (index {lp.layer_index()}), in {topic} string list '{layer_list}'")
+                    layer_indexes.append(lp.layer_index())
+        else:
+            print(f"ERROR: failed to parse {topic} {self.settings.custom_layers} due to errors: {layer_list_parse_result.errors}")
+            layer_indexes = []
+        
+        if len(layer_indexes) == 0:
+            print(f"No layer indexes found for topic '{topic}', layer list string '{layer_list}', parse result: {layer_list_parse_result}")
+            
+        return layer_indexes
+    
+    @cached_property
+    def custom_layers_indexes(self) -> List[int]:
+        return self._get_layer_indexes('custom layer list', self.settings.custom_layers)
+    
     @cached_property
     def text_filter_layers_indexes(self) -> List[int]:
-        layer_indexes: List[int]
-        
-        cellview = self.layout_view.active_cellview()
-        cell = cellview.cell             
-        layout = cell.layout()
-        
-        layer_list_parse_result = LayerList.parse_layer_list_string(self.settings.text_layers)
-        if len(layer_list_parse_result.errors) == 0:
-            layer_indexes = [layout.find_layer(l) for l in layer_list_parse_result.result.layers]            
-        else: 
-            print(f"ERROR: failed to parse layer list {self.settings.text_layers} due to errors: {layer_list_parse_result.errors}")
-            layer_indexes = []
-        return layer_indexes
+        return self._get_layer_indexes('text layer list', self.settings.text_layers)
         
     # --------------------------------------------------------
 
@@ -187,13 +180,12 @@ class DesignInfoTests(unittest.TestCase):
             layer_output_style=LayerOutputStyle.SINGLE_PAGE,
             custom_layers=''
         )
-    
+        
         # bounding box 12.7µm x 6.96µm
         di = DesignInfo(layout_view=None,
                         cell=None,
                         bbox=pya.DBox(0, 0, 12.7, 6.96),
                         dbu=0.001,
-                        layer_indexes=[],
                         settings=settings)
 
         self.assertEqual(12.7, di.width_um)
@@ -220,7 +212,6 @@ class DesignInfoTests(unittest.TestCase):
                         cell=None,
                         bbox=pya.DBox(0, 0, 12.7, 6.96),
                         dbu=0.001,
-                        layer_indexes=[],
                         settings=settings)
 
         self.assertEqual(12.7, di.width_um)

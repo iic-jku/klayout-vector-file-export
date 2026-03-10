@@ -54,7 +54,7 @@ class ContentScaling(StrEnum):
     SCALING = 'scaling'
 
 
-class ColorMode(DualStrEnum):   # 
+class ColorMode(DualStrEnum):
     BLACK_AND_WHITE = 'black_and_white', 'Black & White'
     GREYSCALE = 'greyscale', 'Greyscale'
     COLOR = 'color', 'Color'
@@ -65,10 +65,11 @@ class FontSizeMode(StrEnum):
     PERCENT_OF_FIG_WIDTH = 'percent_of_fig_width'
 
 
-class TextMode(StrEnum):
-    NONE = 'none'
-    ALL_VISIBLE = 'all_visible'
-    ONLY_TOP_CELL = 'only_top_cell'
+class TextMode(DualStrEnum):
+    NONE = 'none', 'None'
+    ALL = 'all', 'All'
+    ALL_VISIBLE = 'all_visible', 'All Visible'
+    ONLY_TOP_CELL = 'only_top_cell', 'Only Of Top Cell'
     
 
 class GeometryReduction(StrEnum):
@@ -76,9 +77,11 @@ class GeometryReduction(StrEnum):
     OMIT_SMALL_POLYGONS = 'omit_small_polygons'
 
 
-class LayerSelectionMode(StrEnum):
-    ALL_VISIBLE_LAYERS = 'all_visible_layers'
-    CUSTOM_LAYER_LIST = 'custom_layer_list'
+class LayerSelectionMode(DualStrEnum):
+    NONE = 'none', 'None'
+    ALL = 'all', 'All'
+    ALL_VISIBLE = 'all_visible_layers', 'All Visible'
+    CUSTOM_LIST = 'custom_layer_list', 'Custom List'
 
 
 @dataclass
@@ -102,8 +105,8 @@ class VectorFileExportSettings:
     text_layers: str = ''
     geometry_reduction: GeometryReduction = GeometryReduction.OMIT_SMALL_POLYGONS
     layer_output_style: LayerOutputStyle = LayerOutputStyle.SINGLE_PAGE
-    layer_selection_mode: LayerSelectionMode = LayerSelectionMode.ALL_VISIBLE_LAYERS
-    custom_layers: str = ''   # only relevant for LayerSelectionMode.CUSTOM_LAYER_LIST
+    layer_selection_mode: LayerSelectionMode = LayerSelectionMode.ALL_VISIBLE
+    custom_layers: str = ''   # only relevant for LayerSelectionMode.CUSTOM_LIST
     
     @classmethod
     def load_json(cls, json_path: Path) -> VectorFileExportSettings:
