@@ -287,6 +287,8 @@ def args_to_settings(args: argparse.Namespace) -> VectorFileExportSettings:
         settings = VectorFileExportSettings.load_json(args.load_settings)
     else:
         settings = VectorFileExportSettings()
+        settings.layer_selection_mode = LayerSelectionMode.ALL
+        settings.text_mode = TextMode.ALL
 
     # Map every argparse dest directly onto the dataclass field of the same name.
     # Fields that share a name need no special treatment.
