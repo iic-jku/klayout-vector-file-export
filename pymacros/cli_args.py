@@ -56,6 +56,25 @@ PROGRAM_NAME = 'klayout-vector-export'
 #
 from vector_file_export_settings import *
 
+
+class CLIArgumentValidationError(Exception):
+    def __init__(self, errors: List[str]):
+        self.errors = errors
+        
+    def print_errors(self) -> None:
+        print("Argument validation errors:")
+        for error in self.errors:
+            lines = error.splitlines()
+            first = True
+            for line in lines:
+                stripped = line.lstrip(" \t")
+                if first:
+                    print(f"\t• {stripped}")
+                    first = False
+                else:
+                    print(f"\t  {stripped}")
+
+
 def build_parser() -> argparse.ArgumentParser:
     main_parser = argparse.ArgumentParser(
         prog='klayout-vector-export',
