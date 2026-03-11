@@ -296,43 +296,49 @@ def args_to_settings(args: argparse.Namespace) -> VectorFileExportSettings:
     for dest, value in vars(args).items():
         if dest in field_names and value is not None:
             setattr(settings, dest, value)
-        
-    if settings.layer_selection_mode == LayerSelectionMode.ALL_VISIBLE:
-        raise ValueError(f"WARNING: Runset file provided contains layer selection of 'All Visible'.\n\n"
-                         f"\tThis setting only works in interactive GUI mode.\n"
-                         f"\tPlease override this setting using the arguments --layer-selection='custom_layer_list' --custom_layers")
-
-    if settings.text_mode == TextMode.ALL_VISIBLE:
-        raise ValueError(f"WARNING: Runset file provided contains text mode of 'All Visible'.\n\n"
-                         f"\tThis setting only works in interactive GUI mode.\n"
-                         f"\tPlease override this setting using the arguments --text-mode='all' --text-layers")
     
     return settings
 
 
 def validate_settings(settings: VectorFileExportSettings) -> None:
     """Raise ValueError for cross-field constraints that argparse alone can't catch."""
+    
+    errors = []
+    
+    if settings.layer_selection_mode == LayerSelectionMode.ALL_VISIBLE:
+        errors.append(f"WARNING: Runset file provided contains layer selection of 'all_visible'.\n\n"
+                      f"\tThis setting only works in interactive GUI mode.\n"
+                      f"\tPlease override this setting using the arguments --layer-selection=custom_layer_list --custom_layers")
+
+    if settings.text_mode == TextMode.ALL_VISIBLE:
+        errors.append(f"WARNING: Runset file provided contains text mode of 'all_visible'.\n\n"
+                      f"\tThis setting only works in interactive GUI mode.\n"
+                      f"\tPlease override this setting using the arguments --text-mode=all --text-layers-filter --text-layers")
+    
     if settings.layer_selection_mode == LayerSelectionMode.CUSTOM_LIST:
         if not settings.custom_layers.strip():
-            raise ValueError(
+            errors.append(
                 "--layers must not be empty when "
                 "--layer-selection-mode=custom_layer_list"
             )
     if settings.text_layers_filter_enabled and not settings.text_layers.strip():
-        raise ValueError(
+        errors.append(
             "--text-layers must not be empty when --text-layers-filter is set"
         )
     if settings.content_scaling_value <= 0:
-        raise ValueError("--scaling-value must be > 0")
+        errors.append("--scaling-value must be > 0")
     if settings.font_size_pt <= 0:
-        raise ValueError("--font-size-pt must be > 0")
+        errors.append("--font-size-pt must be > 0")
     if not (0 < settings.font_size_percent_of_fig_width <= 100):
-        raise ValueError("--font-size-pct must be in (0, 100]")
+        errors.append("--font-size-pct must be in (0, 100]")
+
+    if errors:
+        raise CLIArgumentValidationError(errors)
 
 
 if __name__ == "__main__":
     parser = build_parser()
-    args = parser.parse_args(sys.argv)
+    args = parser.parse_args(sys.argv[1:])
 
     settings = args_to_settings(args)
     validate_settings(settings)
