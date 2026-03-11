@@ -48,7 +48,6 @@ sys.path.append(directory_containing_this_script)
 #--------------------------------------------------------------------------------
 
 PROGRAM_NAME = 'klayout-vector-export'
-__version__ = '0.1'   # TODO: parse from grain.xml
 
 
 #
@@ -67,7 +66,7 @@ def build_parser() -> argparse.ArgumentParser:
     
     group_special = main_parser.add_argument_group("Special options")
     group_special.add_argument("--help", "-h", action='help', help="show this help message and exit")
-    group_special.add_argument("--version", "-v", action='version', version=f'{PROGRAM_NAME} {__version__}')
+    group_special.add_argument("--version", "-v", action='version', help='show the version')
     
     # --- Output ---
     group_io = main_parser.add_argument_group("I/O options")
