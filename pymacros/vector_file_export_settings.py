@@ -87,7 +87,7 @@ class LayerSelectionMode(DualStrEnum):
 @dataclass
 class VectorFileExportSettings:
     file_format: VectorFileFormat = VectorFileFormat.PDF
-    output_path: str | Path = ""
+    output_path: Union[str, Path] = ""
     title: str = "KLayout Vector Export"
     page_format: str = "A4"
     page_orientation: PageOrientation = PageOrientation.PORTRAIT
