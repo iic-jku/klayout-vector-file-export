@@ -101,7 +101,7 @@ class Bitmap:
         height = len(lines)
         data = bytearray(width * height)
         
-        rows: list[bytearray] = []
+        rows: List[bytearray] = []
         for y, line in enumerate(lines):
             if len(line) != width:
                 raise ValueError(f"inconsistent line length on line {y}: "
@@ -122,7 +122,7 @@ class Bitmap:
         if self.width == 0 or self.height == 0:
             return ""
 
-        lines: list[str] = []
+        lines: List[str] = []
         for y in range(self.height):
             row_offset = y * self.width
             line = ''.join(

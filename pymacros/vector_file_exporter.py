@@ -53,57 +53,52 @@ class VectorFileExporter:
         bbox = self.design_info.bbox
         page_size: pya.QPageSize = self.page_size(self.settings)
 
-        match self.settings.file_format:
-            case VectorFileFormat.PDF:
-                pdf = pya.QPdfWriter(str(output_path))
-                pdf.setResolution(72)
-                pdf.setTitle(self.settings.title)
-                dev = pdf.asQPagedPaintDevice()
-                dev.setPageSize(page_size)
-                match self.settings.page_orientation:
-                    case PageOrientation.PORTRAIT:
-                        dev.setPageOrientation(pya.QPageLayout.Portrait)
-                    case PageOrientation.LANDSCAPE:
-                        dev.setPageOrientation(pya.QPageLayout.Landscape)
-                    case _:
-                        raise NotImplementedError()
-                dev.setPageMargins(pya.QMarginsF(0,0,0,0))
-                painter = pya.QPainter(dev)
-                self._pdf = pdf
+        if self.settings.file_format == VectorFileFormat.PDF:
+            pdf = pya.QPdfWriter(str(output_path))
+            pdf.setResolution(72)
+            pdf.setTitle(self.settings.title)
+            dev = pdf.asQPagedPaintDevice()
+            dev.setPageSize(page_size)
+            if self.settings.page_orientation == PageOrientation.PORTRAIT:
+                dev.setPageOrientation(pya.QPageLayout.Portrait)
+            elif self.settings.page_orientation == PageOrientation.LANDSCAPE:
+                dev.setPageOrientation(pya.QPageLayout.Landscape)
+            else:
+                raise NotImplementedError(f"Unhandled PageOrientation enum case {self.settings.page_orientation}")
+            dev.setPageMargins(pya.QMarginsF(0,0,0,0))
+            painter = pya.QPainter(dev)
+            self._pdf = pdf
+        elif self.settings.file_format == VectorFileFormat.SVG:
+            svg = pya.QSvgGenerator()
+            svg.setFileName(str(output_path))
+            svg.setResolution(72)
+            svg.setTitle(self.settings.title)
+
+            # Canvas = full page size (like PDF), not just the figure/design size.
+            # QSvgGenerator has no orientation concept, so we apply it manually
+            # by swapping width/height for portrait vs landscape.
+            page_size_pt = page_size.sizePoints()
+
+            raw_w = int(self.design_info.fig_width_pt)
+            raw_h = int(self.design_info.fig_height_pt)
+
+            if self.settings.page_orientation == PageOrientation.PORTRAIT:
+                page_w = int(min(page_size_pt.width, page_size_pt.height))
+                page_h = int(max(page_size_pt.width, page_size_pt.height))
+            elif self.settings.page_orientation == PageOrientation.LANDSCAPE:
+                page_w = int(max(page_size_pt.width, page_size_pt.height))
+                page_h = int(min(page_size_pt.width, page_size_pt.height))
+            else:
+                raise NotImplementedError(f"Unhandled enum case {self.settings.page_orientation}")
+        
+            fig_size_pt = pya.QSize(page_w, page_h)
+            svg.setSize(fig_size_pt)
+            svg.setViewBox(pya.QRect(0, 0, page_w, page_h))
             
-            case VectorFileFormat.SVG:
-                svg = pya.QSvgGenerator()
-                svg.setFileName(str(output_path))
-                svg.setResolution(72)
-                svg.setTitle(self.settings.title)
-
-                # Canvas = full page size (like PDF), not just the figure/design size.
-                # QSvgGenerator has no orientation concept, so we apply it manually
-                # by swapping width/height for portrait vs landscape.
-                page_size_pt = page_size.sizePoints()
-
-                raw_w = int(self.design_info.fig_width_pt)
-                raw_h = int(self.design_info.fig_height_pt)
-
-                match self.settings.page_orientation:
-                    case PageOrientation.PORTRAIT:
-                        page_w = int(min(page_size_pt.width, page_size_pt.height))
-                        page_h = int(max(page_size_pt.width, page_size_pt.height))
-                    case PageOrientation.LANDSCAPE:
-                        page_w = int(max(page_size_pt.width, page_size_pt.height))
-                        page_h = int(min(page_size_pt.width, page_size_pt.height))
-                    case _:
-                        raise NotImplementedError(f"Unhandled enum case {self.settings.page_orientation}")
-            
-                fig_size_pt = pya.QSize(page_w, page_h)
-                svg.setSize(fig_size_pt)
-                svg.setViewBox(pya.QRect(0, 0, page_w, page_h))
-                
-                painter = pya.QPainter(svg)
-                self._svg = svg
-                
-            case _:
-                raise NotImplementedError(f"Unhandled enum case {self.settings.format}")
+            painter = pya.QPainter(svg)
+            self._svg = svg
+        else:
+            raise NotImplementedError(f"Unhandled enum case {self.settings.format}")
         
         return painter
 
@@ -134,13 +129,12 @@ class VectorFileExporter:
         # painter.setBrush(brush)
 
         font_size_pt: float        
-        match self.settings.font_size_mode:
-            case FontSizeMode.ABSOLUTE:
-                font_size_pt = self.settings.font_size_pt
-            case FontSizeMode.PERCENT_OF_FIG_WIDTH:
-                font_size_pt = self.design_info.fig_width_pt * self.settings.font_size_percent_of_fig_width * 0.01
-            case _:
-                raise NotImplementedError(f"Unhandled enum case {self.settings.font_size_mode}")
+        if self.settings.font_size_mode == FontSizeMode.ABSOLUTE:
+            font_size_pt = self.settings.font_size_pt
+        elif self.settings.font_size_mode == FontSizeMode.PERCENT_OF_FIG_WIDTH:
+            font_size_pt = self.design_info.fig_width_pt * self.settings.font_size_percent_of_fig_width * 0.01
+        else:
+            raise NotImplementedError(f"Unhandled enum case {self.settings.font_size_mode}")
         
         font = pya.QFont()
         font.setFamily(self.settings.font_family)
@@ -152,15 +146,14 @@ class VectorFileExporter:
         width: float
         height: float
         
-        match self.settings.page_orientation:
-            case PageOrientation.PORTRAIT:
-                width = min(page_size_pt.width, page_size_pt.height)
-                height = max(page_size_pt.width, page_size_pt.height)
-            case PageOrientation.LANDSCAPE:
-                width = max(page_size_pt.width, page_size_pt.height)
-                height = min(page_size_pt.width, page_size_pt.height)
-            case _:
-                raise NotImplementedError()
+        if self.settings.page_orientation == PageOrientation.PORTRAIT:
+            width = min(page_size_pt.width, page_size_pt.height)
+            height = max(page_size_pt.width, page_size_pt.height)
+        elif self.settings.page_orientation == PageOrientation.LANDSCAPE:
+            width = max(page_size_pt.width, page_size_pt.height)
+            height = min(page_size_pt.width, page_size_pt.height)
+        else:
+            raise NotImplementedError()
         
         offset_x = (width - self.design_info.fig_width_pt) / 2
         offset_y = (height - self.design_info.fig_height_pt) / 2
@@ -189,17 +182,16 @@ class VectorFileExporter:
         # shape_path is expected in device coordinates for SVG
         # (already mapped in draw_polygon), or world coordinates for PDF
         # (mapped here via world_trans).
-        match self.settings.file_format:
-            case VectorFileFormat.SVG:
-                clip_path_device = shape_path  # already in device space
-            case VectorFileFormat.PDF:
-                world_trans = painter.worldTransform
-                if not world_trans.isInvertible():
-                    print(f"ERROR: Failed to invert world transformation")
-                    return
-                clip_path_device = world_trans.map(shape_path)
-            case _:
-                raise NotImplementedError(f"Unhandled enum case {self.settings.format}")
+        if self.settings.file_format == VectorFileFormat.SVG:
+            clip_path_device = shape_path  # already in device space
+        elif self.settings.file_format == VectorFileFormat.PDF:
+            world_trans = painter.worldTransform
+            if not world_trans.isInvertible():
+                print(f"ERROR: Failed to invert world transformation")
+                return
+            clip_path_device = world_trans.map(shape_path)
+        else:
+            raise NotImplementedError(f"Unhandled enum case {self.settings.format}")
         
         # get shape bounding rect
         bbox = shape_path.boundingRect()
@@ -268,21 +260,23 @@ class VectorFileExporter:
             x = device_pos.x
             y = device_pos.y
             
-            match text.halign:
-                case pya.Text.HAlignLeft:
-                    pass
-                case pya.Text.HAlignCenter:
-                    x -= text_rect.width / 2
-                case pya.Text.HAlignRight:
-                    x -= text_rect.width
+            if text.halign == pya.Text.HAlignLeft:
+                pass
+            elif text.halign == pya.Text.HAlignCenter:
+                x -= text_rect.width / 2
+            elif text.halign == pya.Text.HAlignRight:
+                x -= text_rect.width
+            else:
+                raise NotImplementedError(f"Unhandled pya.Text h alignment {text.halign}")
             
-            match text.valign:
-                case pya.Text.VAlignTop:
-                    y -= font_metrics.ascent()
-                case pya.Text.VAlignCenter:
-                    y += text_rect.height / 2 - font_metrics.descent()
-                case pya.Text.VAlignBottom:
-                    y += text_rect.height - font_metrics.descent()
+            if text.valign == pya.Text.VAlignTop:
+                y -= font_metrics.ascent()
+            elif text.valign == pya.Text.VAlignCenter:
+                y += text_rect.height / 2 - font_metrics.descent()
+            elif text.valign == pya.Text.VAlignBottom:
+                y += text_rect.height - font_metrics.descent()
+            else:
+                raise NotImplementedError(f"Unhandled pya.Text v alignment {text.valign}")
             
             painter.save()
             painter.resetTransform()  # no scaling, no flipping
@@ -306,29 +300,28 @@ class VectorFileExporter:
                 poly_path.lineTo(pya.QPointF(pt.x, pt.y))
             poly_path.closeSubpath()
             
-            match self.settings.file_format:
-                case VectorFileFormat.PDF:
-                    painter.drawPath(poly_path)
-                case VectorFileFormat.SVG:
-                    # Map to device space explicitly, never trust QSvgGenerator
-                    # to apply the world transform correctly
+            if self.settings.file_format == VectorFileFormat.PDF:
+                painter.drawPath(poly_path)
+            elif self.settings.file_format ==  VectorFileFormat.SVG:
+                # Map to device space explicitly, never trust QSvgGenerator
+                # to apply the world transform correctly
 
-                    world_trans = painter.worldTransform
-                    poly_path = world_trans.map(poly_path)
-                    
-                    painter.save()
-                    painter.resetTransform()
-                    # Pen must be non-cosmetic with a device-space width,
-                    # since we're drawing in device coordinates after resetTransform.
-                    # cosmetic pen_width is in µm — meaningless in device space.
-                    device_pen = pya.QPen(painter.pen().color)
-                    device_pen.setWidthF(1.0)
-                    device_pen.setCosmetic(False)
-                    painter.setPen(device_pen)                    
-                    painter.drawPath(poly_path)
-                    painter.restore()
-                case _:
-                    raise NotImplementedError(f"Unhandled enum case {self.settings.format}")
+                world_trans = painter.worldTransform
+                poly_path = world_trans.map(poly_path)
+                
+                painter.save()
+                painter.resetTransform()
+                # Pen must be non-cosmetic with a device-space width,
+                # since we're drawing in device coordinates after resetTransform.
+                # cosmetic pen_width is in µm — meaningless in device space.
+                device_pen = pya.QPen(painter.pen().color)
+                device_pen.setWidthF(1.0)
+                device_pen.setCosmetic(False)
+                painter.setPen(device_pen)                    
+                painter.drawPath(poly_path)
+                painter.restore()
+            else:
+                raise NotImplementedError(f"Unhandled VectorFileFormat enum case {self.settings.file_format}")
             
             #
             # draw the stipple "fill"
@@ -376,18 +369,17 @@ class VectorFileExporter:
         painter.save()
         painter.resetTransform()  # device coordinates (points)
             
-        match self.settings.file_format:
-            case VectorFileFormat.PDF:
-                # NOTE: we can't use the page_size alone,
-                #       because there are printer margins that Qt implicitly considers
-                device = painter.device()
-                layout = device.pageLayout()
-                paint_rect = layout.paintRect(pya.QPageLayout.Point)
-            case VectorFileFormat.SVG:
-                paint_rect = painter.viewport  # svg generator viewport
-            case _:
-                painter.restore()
-                return
+        if self.settings.file_format == VectorFileFormat.PDF:
+            # NOTE: we can't use the page_size alone,
+            #       because there are printer margins that Qt implicitly considers
+            device = painter.device()
+            layout = device.pageLayout()
+            paint_rect = layout.paintRect(pya.QPageLayout.Point)
+        elif self.settings.file_format == VectorFileFormat.SVG:
+            paint_rect = painter.viewport  # svg generator viewport
+        else:
+            painter.restore()
+            return
 
         background_color_str = self.design_info.layout_view.get_config('background-color')
         background_color = pya.QColor(background_color_str)
@@ -415,31 +407,31 @@ class VectorFileExporter:
             painter.drawRect(pya.QRectF(bbox.left, bbox.bottom, bbox.width(), bbox.height()))
 
         if self.settings.include_background_color:
-            match self.settings.color_mode:
-                case ColorMode.BLACK_AND_WHITE:
-                    pass  # no background color in this mode (avoid black on black)
-                case ColorMode.GREYSCALE:
-                    pass  # no background color in this mode (avoid constrast issues)
-                case ColorMode.COLOR:
-                    self.draw_background(painter)
+            if self.settings.color_mode == ColorMode.BLACK_AND_WHITE:
+                pass  # no background color in this mode (avoid black on black)
+            elif self.settings.color_mode == ColorMode.GREYSCALE:
+                pass  # no background color in this mode (avoid constrast issues)
+            elif self.settings.color_mode == ColorMode.COLOR:
+                self.draw_background(painter)
+            else:
+                raise NotImplementedError(f"Unhandled ColorMode enum case {self.settings.color_mode}")
         
         layer_properties_by_layer_index = {lp.layer_index(): lp for lp in self.design_info.layout_view.each_layer()}
         
         def is_valid_text(lyr_idx, iter, shape) -> bool:
-            match self.settings.text_mode:
-                case TextMode.NONE:
+            if self.settings.text_mode == TextMode.NONE:
+                return False
+            elif self.settings.text_mode == TextMode.ALL:
+                pass  # honor filter below
+            elif self.settings.text_mode == TextMode.ALL_VISIBLE:
+                lp = layer_properties_by_layer_index[lyr]
+                if not lp.visible:
                     return False
-                case TextMode.ALL:
-                    pass  # honor filter below
-                case TextMode.ALL_VISIBLE:
-                    lp = layer_properties_by_layer_index[lyr]
-                    if not lp.visible:
-                        return False
-                case TextMode.ONLY_TOP_CELL:
-                    if sh.cell != top_cell:
-                        return False
-                case _:
-                    raise NotImplementedError(f"Unhandled enum case {self.settings.text_mode}")
+            elif self.settings.text_mode == TextMode.ONLY_TOP_CELL:
+                if sh.cell != top_cell:
+                    return False
+            else:
+                raise NotImplementedError(f"Unhandled TextMode enum case {self.settings.text_mode}")
             
             if self.settings.text_layers_filter_enabled:
                 return lyr_idx in self.design_info.text_filter_layers_indexes
@@ -447,18 +439,17 @@ class VectorFileExporter:
             return True
         
         def is_valid_polygon_layer(lp: pya.LayerInfo) -> bool:
-            match self.settings.layer_selection_mode:
-                case LayerSelectionMode.NONE:
-                    return False
-                case LayerSelectionMode.ALL:
-                    return True
-                case LayerSelectionMode.ALL_VISIBLE:
-                    lp = layer_properties_by_layer_index[lyr]
-                    return lp.visible
-                case LayerSelectionMode.CUSTOM_LIST:
-                    return lp.layer_index() in self.design_info.custom_layers_indexes
-                case _:
-                    raise NotImplementedError(f"Unhandled enum case {self.settings.layer_selection_mode}")
+            if self.settings.layer_selection_mode == LayerSelectionMode.NONE:
+                return False
+            elif self.settings.layer_selection_mode == LayerSelectionMode.ALL:
+                return True
+            elif self.settings.layer_selection_mode == LayerSelectionMode.ALL_VISIBLE:
+                lp = layer_properties_by_layer_index[lyr]
+                return lp.visible
+            elif self.settings.layer_selection_mode == LayerSelectionMode.CUSTOM_LIST:
+                return lp.layer_index() in self.design_info.custom_layers_indexes
+            else:
+                raise NotImplementedError(f"Unhandled LayerSelectionMode enum case {self.settings.layer_selection_mode}")
         
         drawn_shapes = 0
         for lyr in self.design_info.all_layer_indexes:
@@ -476,19 +467,21 @@ class VectorFileExporter:
                 # frame_color = pya.QColor(lp.eff_fill_color())
                 # fill_color = pya.QColor(lp.eff_fill_color())
                 
-                match self.settings.color_mode:
-                    case ColorMode.BLACK_AND_WHITE:
-                        pass  # should never be called
-                    case ColorMode.GREYSCALE:
-                        # luminosity-based conversion: preserves perceived brightness
-                        gray_value = int(0.299 * frame_color.red +\
-                                         0.587 * frame_color.green +\
-                                         0.114 * frame_color.blue)
-                        pen = self.pen(color=pya.QColor(gray_value, gray_value, gray_value), width_f=width_f)
-                        painter.setPen(pen)
-                    case ColorMode.COLOR:
-                        pen = self.pen(color=frame_color, width_f=width_f)
-                        painter.setPen(pen)
+                if self.settings.color_mode == ColorMode.BLACK_AND_WHITE:
+                    pass  # should never be called
+                elif self.settings.color_mode == ColorMode.GREYSCALE:
+                    # luminosity-based conversion: preserves perceived brightness
+                    gray_value = int(0.299 * frame_color.red +\
+                                     0.587 * frame_color.green +\
+                                     0.114 * frame_color.blue)
+                    pen = self.pen(color=pya.QColor(gray_value, gray_value, gray_value), width_f=width_f)
+                    painter.setPen(pen)
+                elif self.settings.color_mode == ColorMode.COLOR:
+                    pen = self.pen(color=frame_color, width_f=width_f)
+                    painter.setPen(pen)
+                else:
+                    raise NotImplementedError(f"Unhandled ColorMode enum case {self.settings.color_mode}")
+                
             
             stipple_panel: Optional[StipplePanel] = None
             def prepare_stipple_panel():
@@ -534,13 +527,14 @@ class VectorFileExporter:
                     new_page_needed = False
                     
                     if self.settings.include_background_color:
-                        match self.settings.color_mode:
-                            case ColorMode.BLACK_AND_WHITE:
-                                pass  # no background color in this mode (avoid black on black)
-                            case ColorMode.GREYSCALE:
-                                pass  # no background color in this mode (avoid constrast issues)
-                            case ColorMode.COLOR:
-                                self.draw_background(painter)
+                        if self.settings.color_mode == ColorMode.BLACK_AND_WHITE:
+                            pass  # no background color in this mode (avoid black on black)
+                        elif self.settings.color_mode == ColorMode.GREYSCALE:
+                            pass  # no background color in this mode (avoid constrast issues)
+                        elif self.settings.color_mode == ColorMode.COLOR:
+                            self.draw_background(painter)
+                        else:
+                            raise NotImplementedError(f"Unhandled ColorMode enum case {self.settings.color_mode}")
                 
                 if not sh.is_text() or is_valid_text(lyr, iter, sh):
                     if not sh.is_text():  # not required for text
