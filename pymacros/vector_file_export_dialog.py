@@ -442,16 +442,16 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         if Debugging.DEBUG:
             debug("VectorFileExportDialog._update_ui_from_settings")
         
+        format_combo = (settings.file_format, settings.layer_output_style)
         format_choice = ''
-        match (settings.file_format, settings.layer_output_style):
-            case (VectorFileFormat.PDF, LayerOutputStyle.SINGLE_PAGE):
-                format_choice='PDF (single page)'
-            case (VectorFileFormat.PDF, LayerOutputStyle.PAGE_PER_LAYER):
-                format_choice='PDF (page per layer)'
-            case (VectorFileFormat.SVG, _):
-                format_choice='SVG'
-            case _:
-                raise NotImplementedError(f"Unhandled enum case {(settings.file_format, settings.layer_output_style)}")
+        if format_combo == (VectorFileFormat.PDF, LayerOutputStyle.SINGLE_PAGE):
+            format_choice = 'PDF (single page)'
+        elif format_combo == (VectorFileFormat.PDF, LayerOutputStyle.PAGE_PER_LAYER):
+            format_choice = 'PDF (page per layer)'
+        elif settings.file_format == VectorFileFormat.SVG:
+            format_choice = 'SVG'
+        else:
+            raise NotImplementedError(f"Unhandled enum case {(settings.file_format, settings.layer_output_style)}")
         idx = self.page.file_format_cob.findText(format_choice)
         if idx >= 0:
             self.page.file_format_cob.setCurrentIndex(idx)
@@ -466,25 +466,23 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         if idx >= 0:
             self.page.page_format_cob.setCurrentIndex(idx)
         
-        match settings.page_orientation:
-            case PageOrientation.PORTRAIT:
-                self.page.portrait_rb.setChecked(True)
-                self.page.landscape_rb.setChecked(False)
-            case PageOrientation.LANDSCAPE:
-                self.page.portrait_rb.setChecked(False)
-                self.page.landscape_rb.setChecked(True)
+        if settings.page_orientation == PageOrientation.PORTRAIT:
+            self.page.portrait_rb.setChecked(True)
+            self.page.landscape_rb.setChecked(False)
+        elif settings.page_orientation == PageOrientation.LANDSCAPE:
+            self.page.portrait_rb.setChecked(False)
+            self.page.landscape_rb.setChecked(True)
         
         design_info = DesignInfo.for_layout_view(pya.LayoutView.current(), settings)
         
-        match settings.content_scaling_style:
-            case ContentScaling.FIGURE_WIDTH_MM:
-                self.page.figure_size_rb.setChecked(True)
-                self.page.scaling_rb.setChecked(False)
-            case ContentScaling.SCALING:
-                self.page.figure_size_rb.setChecked(False)
-                self.page.scaling_rb.setChecked(True)
-            case _:
-                raise NotImplementedError(f"Unhandled enum case {settings.content_scaling_style}")
+        if settings.content_scaling_style == ContentScaling.FIGURE_WIDTH_MM:
+            self.page.figure_size_rb.setChecked(True)
+            self.page.scaling_rb.setChecked(False)
+        elif settings.content_scaling_style == ContentScaling.SCALING:
+            self.page.figure_size_rb.setChecked(False)
+            self.page.scaling_rb.setChecked(True)
+        else:
+            raise NotImplementedError(f"Unhandled enum case {settings.content_scaling_style}")
         
         self.page.figure_width_sb.setValue(design_info.fig_width_mm)
         self.page.figure_height_sb.setValue(design_info.fig_height_mm)
@@ -496,13 +494,12 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         
         self.page.font_family_cob.setCurrentText(settings.font_family)
 
-        match settings.font_size_mode:
-            case FontSizeMode.ABSOLUTE:
-                self.page.font_size_absolute_rb.setChecked(True)
-            case FontSizeMode.PERCENT_OF_FIG_WIDTH:
-                self.page.font_size_relative_rb.setChecked(True)
-            case _:
-                raise NotImplementedError(f"Unhandled enum case {settings.font_size_mode}")
+        if settings.font_size_mode == FontSizeMode.ABSOLUTE:
+            self.page.font_size_absolute_rb.setChecked(True)
+        elif settings.font_size_mode == FontSizeMode.PERCENT_OF_FIG_WIDTH:
+            self.page.font_size_relative_rb.setChecked(True)
+        else:
+            raise NotImplementedError(f"Unhandled enum case {settings.font_size_mode}")
         
         self.page.font_size_pt_sb.setValue(settings.font_size_pt)
         
@@ -531,13 +528,12 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         # except ExportCancelledError as e:
         #     pass
         
-        match settings.content_scaling_style:
-            case ContentScaling.FIGURE_WIDTH_MM:
-                self.on_figure_width_changed()
-            case ContentScaling.SCALING:
-                self.on_scaling_changed()
-            case _:
-                raise NotImplementedError(f"Unhandled enum case {settings.content_scaling_style}")
+        if settings.content_scaling_style == ContentScaling.FIGURE_WIDTH_MM:
+            self.on_figure_width_changed()
+        elif settings.content_scaling_style == ContentScaling.SCALING:
+            self.on_scaling_changed()
+        else:
+            raise NotImplementedError(f"Unhandled enum case {settings.content_scaling_style}")
 
         self.on_color_changed()
 
@@ -625,15 +621,14 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
             suffix: str
             
             settings = self.settings_from_ui()
-            match settings.file_format:
-                case VectorFileFormat.PDF:
-                    file_filter = 'PDF (*.pdf)'
-                    suffix = '.pdf'
-                case VectorFileFormat.SVG:
-                    file_filter = 'SVG (*.svg)'
-                    suffix = '.svg'
-                case _:
-                    raise NotImplementedError(f"Unhandled enum case {settings.file_format}")
+            if settings.file_format == VectorFileFormat.PDF:
+                file_filter = 'PDF (*.pdf)'
+                suffix = '.pdf'
+            elif settings.file_format == VectorFileFormat.SVG:
+                file_filter = 'SVG (*.svg)'
+                suffix = '.svg'
+            else:
+                raise NotImplementedError(f"Unhandled enum case {settings.file_format}")
 
             file_path_str = pya.QFileDialog.getSaveFileName(
                 self,               
