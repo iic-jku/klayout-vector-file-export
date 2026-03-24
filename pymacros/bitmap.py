@@ -32,7 +32,7 @@ from klayout_plugin_utils.debugging import debug, Debugging
 from klayout_plugin_utils.base36 import *
 
 
-@dataclass(slots=True)
+@dataclass
 class Bitmap:
     width: int
     height: int

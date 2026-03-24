@@ -19,7 +19,7 @@
 import pya
 
 from dataclasses import dataclass
-from enum import StrEnum
+from klayout_plugin_utils.str_enum_compat import StrEnum
 from functools import cached_property
 import os
 from pathlib import Path
