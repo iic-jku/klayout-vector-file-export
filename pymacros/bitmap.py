@@ -20,6 +20,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from math import ceil
 import os
+import sys
 import tempfile
 import traceback
 from typing import *
@@ -32,7 +33,7 @@ from klayout_plugin_utils.debugging import debug, Debugging
 from klayout_plugin_utils.base36 import *
 
 
-@dataclass(slots=True)
+@dataclass(**({'slots': True} if sys.version_info >= (3, 10) else {}))
 class Bitmap:
     width: int
     height: int
