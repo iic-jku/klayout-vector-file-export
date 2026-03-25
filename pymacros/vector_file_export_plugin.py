@@ -17,14 +17,18 @@
 #--------------------------------------------------------------------------------
 
 from __future__ import annotations
+
+import pya
+
+if pya.MainWindow.instance() is None:  # non-GUI mode
+    sys.exit(0)
+
 import os 
 from pathlib import Path
 import re
 import sys
 import traceback
 from typing import *
-
-import pya
 
 from klayout_plugin_utils.debugging import debug, Debugging
 from klayout_plugin_utils.file_system_helpers import FileSystemHelpers
