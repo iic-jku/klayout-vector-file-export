@@ -260,7 +260,8 @@ class VectorFileExporter:
             x = device_pos.x
             y = device_pos.y
             
-            if text.halign == pya.Text.HAlignLeft:
+            if text.halign in (pya.Text.HAlignLeft,
+                               pya.Text.NoHAlign):
                 pass
             elif text.halign == pya.Text.HAlignCenter:
                 x -= text_rect.width / 2
@@ -269,12 +270,13 @@ class VectorFileExporter:
             else:
                 raise NotImplementedError(f"Unhandled pya.Text h alignment {text.halign}")
             
-            if text.valign == pya.Text.VAlignTop:
+            if text.valign in (pya.Text.VAlignBottom,
+                               pya.Text.NoVAlign):
+                y += text_rect.height - font_metrics.descent()
+            elif text.valign == pya.Text.VAlignTop:
                 y -= font_metrics.ascent()
             elif text.valign == pya.Text.VAlignCenter:
                 y += text_rect.height / 2 - font_metrics.descent()
-            elif text.valign == pya.Text.VAlignBottom:
-                y += text_rect.height - font_metrics.descent()
             else:
                 raise NotImplementedError(f"Unhandled pya.Text v alignment {text.valign}")
             
