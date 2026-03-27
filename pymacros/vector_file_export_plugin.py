@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import pya
+import sys
 
 if pya.MainWindow.instance() is None:  # non-GUI mode
     sys.exit(0)
@@ -26,7 +27,6 @@ if pya.MainWindow.instance() is None:  # non-GUI mode
 import os 
 from pathlib import Path
 import re
-import sys
 import traceback
 from typing import *
 
