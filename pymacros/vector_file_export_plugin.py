@@ -81,7 +81,7 @@ class VectorFileExportPluginFactory(pya.PluginFactory):
             return
 
         settings = PreviousUISettings.load()
-        settings.output_path = Path(f"{cw.cell.name}_export{settings.file_format.value}")
+        settings.output_path = Path(f"{cw.cell.name}_export{settings.file_format.suffix}")
 
         mw = pya.MainWindow.instance()
         try:

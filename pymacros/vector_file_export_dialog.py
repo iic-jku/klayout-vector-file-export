@@ -542,7 +542,7 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         if old_path != '':
             path = Path(old_path)
             settings = self.settings_from_ui()
-            new_suffix = settings.file_format.value
+            new_suffix = settings.file_format.suffix
             if path.suffix != new_suffix:
                 path = path.with_suffix(new_suffix)
             self.page.save_path_le.setText(str(path))
