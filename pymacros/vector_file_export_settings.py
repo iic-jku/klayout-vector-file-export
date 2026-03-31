@@ -35,8 +35,12 @@ from klayout_plugin_utils.str_enum_compat import StrEnum, DualStrEnum
 #--------------------------------
 
 class VectorFileFormat(StrEnum):
-    PDF = '.pdf'
-    SVG = '.svg'
+    PDF = 'pdf'
+    SVG = 'svg'
+
+    @property
+    def suffix(self) -> str:
+        return f'.{self.value}'
 
 
 class LayerOutputStyle(StrEnum):
@@ -125,7 +129,9 @@ class VectorFileExportSettings:
     
         file_format_str = d.get('file_format', None)
         if file_format_str is not None:
-            settings.file_format = VectorFileFormat(file_format_str)
+            # Backwards compat: strip leading dot if present (old format used '.pdf')
+            normalized = file_format_str.lstrip('.')
+            settings.file_format = VectorFileFormat(normalized)
         
         output_path_str = d.get('output_path', None)
         if output_path_str is not None:
