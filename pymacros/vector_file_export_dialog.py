@@ -531,7 +531,7 @@ class VectorFileExportDialog(pya.QDialog, ProgressReporter):
         if settings.content_scaling_style == ContentScaling.FIGURE_WIDTH_MM:
             self.on_figure_width_changed()
         elif settings.content_scaling_style == ContentScaling.SCALING:
-            self.on_scaling_changed()
+            self.on_scaling_value_changed()
         else:
             raise NotImplementedError(f"Unhandled enum case {settings.content_scaling_style}")
 
